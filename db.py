@@ -101,6 +101,7 @@ def fetch_all(table: str):
     with open(path, 'w', encoding='utf-8') as file:
         json.dump(reviews, file, ensure_ascii=False, indent=4)
     print(f'Table saved to: {path}')
+    return reviews
 
 def insert_to_table(data: tuple,
                     table: str = 'artists',
