@@ -4,22 +4,11 @@ from typing import Optional
 import discord
 from discord import app_commands
 from discord.ext import commands
+from selections import CogModules
 
 class BotManger(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
-    class CogModules(enum.Enum):
-        """
-        Enumerate for different Cog modules.
-        If new module is added, need to add new attribute manually.
-        """
-        __cogDir__ = 'cogs.'
-        all = __cogDir__ + '*'
-        main = __cogDir__ + 'main'
-        event = __cogDir__ + 'event'
-        bot_manager = __cogDir__ + 'bot_manager'
-        view = __cogDir__ + 'view'
 
     @app_commands.command(
         name='load_module',
@@ -57,9 +46,9 @@ class BotManger(commands.Cog):
         '''
         重新載入程式檔案
         '''
-        if module == self.CogModules.all:
-            for item in self.CogModules:
-                if item == self.CogModules.all:
+        if module == CogModules.all:
+            for item in CogModules:
+                if item == CogModules.all:
                     continue
                 await self.bot.reload_extension(item.value)
         else:
