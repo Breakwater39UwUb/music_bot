@@ -21,73 +21,10 @@ TABLES = {
     'users': 'users'
 }
 
-def db_upload_file(filename: str,
-                   host_name: str = 'localhost',
-                   db_name: str = DEFAULT_DB,
-                   table_name: str = 'rumors',
-                   file_format: str = 'json'):
-    """Upload in given file
-
-    Args:
-        filename: File under ./SaveData/
-        db_name: Database to connect, default connect to innoserve database
-        file_format: Default = 'json'
-    No returns
-    """
-
-    if file_format not in ['csv', 'json']:
-        raise Exception('file_format must be csv or json')
-    
-    db = init_db(db_name, host_name)
-    log = utils.Debug_Logger('init_db')
-
-    if db is None:
-        log.log('Failed to connect to MySQL database.', 30)
-        return
-
-    cursor = db.cursor()
-    cursor.execute("SET NAMES utf8mb4")
-    cursor.execute("SET CHARACTER SET utf8mb4")
-    cursor.execute("SET character_set_connection=utf8mb4")
-    # cursor.execute(command)
-
-    with open(filename, 'r', encoding='utf-8') as file:
-        if file_format == 'csv':
-            lines = csv.reader(file)
-        if file_format == 'json':
-            lines = json.load(file)
-
-        for line in lines:
-            # Update table
-            command = f"INSERT INTO {table_name}\
-                (id, publish_date, title, tag, content) VALUES\
-                (%s, %s, %s, %s, %s)"
-
-            if file_format == 'csv':
-                id, publish_date, title, tag, content = line[0], line[1], line[2], line[3], line[4]
-            if file_format == 'json':
-                id = int(line['id'])
-                publish_date = line['date']
-                title = line['title']
-                tag = line['tag']
-                content = line['content']
-
-            article = (id, publish_date, title, tag, content)
-
-            try:
-                cursor.execute(command, article)
-                db.commit()
-            except pymysql.IntegrityError as e:
-                if e.args[0] == DUP_ENTRY:
-                    log.log(e)
-                    pass
-        db.close()
-        log.log(f'{filename} uploaded successfully.')
-
 def fetch_all(table: str):
     '''Download all reviews from given table'''
 
-    db = init_db()
+    db = init_db(user='dc_bot', host='remote')
     if db is None:
         return
     cursor = db.cursor()
@@ -125,7 +62,7 @@ def insert_to_table(data: tuple,
     None
     """
     if db is None:
-        db = init_db()
+        db = init_db(user='dc_bot', host='remote')
         if db is None:
             return 'failed'
 
@@ -153,7 +90,34 @@ def insert_to_table(data: tuple,
     finally:
         db.close()
 
+def find_artists(name: str,
+                 table: str = TABLES['artists'],
+                 db = None):
+    '''
+    May return string that contains \\u3000
+    '''
+    if db is None:
+        db = init_db(user='dc_bot', host='remote')
+    if db is None:
+        return 'failed'
 
+    if not check_exist_table(table, db):
+        raise ValueError('Must given table name exist in database.')
+
+    cursor = db.cursor()
+    artists_names = []
+
+    query = f"SELECT ArtistName FROM `{table}`\
+        WHERE ArtistName LIKE %s\
+        OR ArtistName_Alt LIKE %s\
+        LIMIT 25"
+    cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
+
+    # Fetch and print the results
+    results = cursor.fetchall()
+    for row in results:
+        artists_names.append(row[0])
+    return artists_names
 
 def check_exist_table(table_name: str, db=None):
     '''Check if the table is exist in database
@@ -167,7 +131,7 @@ def check_exist_table(table_name: str, db=None):
 
     if db is None:
         # No db object passed, initial one
-        db = init_db()
+        db = init_db(user='dc_bot', host='remote')
 
         if db is None:
             return
@@ -199,8 +163,8 @@ def get_connection_args(remote: str='localhost') -> tuple:
     """
     if remote == 'localhost':
         return 'localhost', 3306, 'root'
-    if remote == 'lab404':
-        return '192.168.196.201', 3306, 'lab404'
+    if remote == 'remote':
+        return '1.170.130.56', 3306, '2wsx!QAZ'
 
 
 def init_db(user: str = 'root',
