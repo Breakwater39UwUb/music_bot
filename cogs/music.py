@@ -5,7 +5,6 @@ from discord.ext import commands
 from discord.app_commands import Choice
 from discord import app_commands
 import pymysql.err as sql_err
-# from selections import SongTags
 import db
 
 class Music(commands.Cog):
