@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import time
-from cogs.view import View
+from cogs.music import Music
 
 class Event(commands.Cog):
     def __init__(self, bot):
@@ -28,6 +28,10 @@ class Event(commands.Cog):
     async def on_command_error(self, ctx: commands.context, err):
         print(err)
         await ctx.send(err)
+
+    @commands.Cog.listener()
+    async def on_error(event, *args, **kwargs):
+        print(f'{args}\n{kwargs}')
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
