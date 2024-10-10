@@ -179,6 +179,7 @@ logs
 
 # Misc
 .DS_Store
+._.DS_Store
 .fleet
 .idea
 
