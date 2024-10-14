@@ -1,10 +1,15 @@
 from typing import List
 import asyncio
+import re
+import json
 import discord
 from discord.ext import commands
 from discord.app_commands import Choice
 from discord import app_commands
 import pymysql.err as sql_err
+from PIL import Image
+from urllib import request
+from urllib.parse import parse_qs, urlparse, urlencode
 import db
 
 class Music(commands.Cog):
@@ -24,6 +29,9 @@ class Music(commands.Cog):
         def __init__(self, songData, timeout: float | None = 180):
             super().__init__(timeout = timeout)
             self.songData = songData
+            '''[0]: song id, [1]: song title, [2]: artist,
+            [3]:user id, [4]: url, [5]: thumbnail url'''
+            self.songData.append('')
             moodMenu = Music.TagSelMenu.SongTags('Mood')
             typeMenu = Music.TagSelMenu.SongTags('Type')
             subBtn = discord.ui.Button(label='Submit')
@@ -35,13 +43,7 @@ class Music(commands.Cog):
             self.add_item(subBtn)
 
         async def menu_callback(self, interaction: discord.Interaction):
-            # await interaction.followup.fetch()
-            # await interaction.response.send_message(self.values[0])
             await interaction.response.defer(ephemeral=True)
-            # self.ans.append(interaction.data['values'])
-            # if self.values[0] == "Option 3":
-            # await interaction.response.defer(ephemeral=True, thinking=True)
-            # await interaction.followup.send(interaction.data['values'], ephemeral=True)
 
         async def btn_callback(self, interaction: discord.Interaction):
             await interaction.response.defer(ephemeral=True)
@@ -49,12 +51,15 @@ class Music(commands.Cog):
             try:
                 embed=discord.Embed(title='Song submitted', description='The song you want to share has been submitted.', color=0x39c5bb)
                 # (ID, title, artist name, user ID)
+                self.songData[4], self.songData[5] = Music.get_thumbnail(self.songData[4])
+                artistURL = Music.format_url(self.songData[2])
+                embed.set_image(url=self.songData[5])
                 embed.add_field(name='Song ID', value=f'```{self.songData[0]}```', inline=False)
                 embed.add_field(name='Song title', value=self.songData[1])
-                embed.add_field(name='Song artist', value=self.songData[2])
+                embed.add_field(name='Song artist', value=f'[{self.songData[2]}]({artistURL})')
                 embed.add_field(name='Song tags', value=self.ans, inline=False)
                 embed.add_field(name='Recommender', value=f'{interaction.user.mention}', inline=False)
-                embed.add_field(name='URL', value=self.songData[4], inline=False) if self.songData[4] != '' else None
+                embed.add_field(name='URL', value=f'[Listen]({self.songData[4]})', inline=False) if self.songData[4] != '' else None
                 await interaction.followup.send(embed = embed)
             except Exception as e:
                 err_msg = f'Failed to submit song.\n{e}'
@@ -113,12 +118,13 @@ class Music(commands.Cog):
     @app_commands.describe(song_title='song title', artist='artist name, if you don\'t know the name, skip it or type "UNKNOWN"', url='song url')
     async def share_song(self, interaction: discord.Interaction,
                          song_title: str, artist: str = '5529', url: str = ''):
+        # TODO: Try to auto fetch song title and artist
         user = (interaction.user.id, interaction.user.name)
         try:
-            await interaction.response.defer(ephemeral = True, thinking = True)
+            await interaction.response.defer(ephemeral=True, thinking = True)
             submitResults = db.submit_song(song_title, artist, user)
             submitResults.append(url)
-            view = self.TagSelMenu(songData=submitResults)
+            view = self.TagSelMenu(submitResults)
             await interaction.followup.send(view = view)
             # tags = await self.bot.wait_for('button_click', check=view.btn_callback)
         except Exception as e:
@@ -131,6 +137,48 @@ class Music(commands.Cog):
         # 創建一個 ViewClass 類別，並設置 30 秒超時
         view = self.TagSelMenu(timeout = 30)
         await interaction.response.send_message(view = view)
+
+    def get_thumbnail(url):
+        # TODO: Add Apple Music and Tidal support
+        # Parse the URL to get the query parameters
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+
+        # Case 1: Standard YouTube URL (e.g., https://www.youtube.com/watch?v=SdDdyMb0p2U)
+        if "v" in query_params:
+            return url, f'https://img.youtube.com/vi/{query_params["v"][0]}/maxresdefault.jpg'
+
+        # Case 2: Google redirect URL (e.g., https://www.google.com/url?...&url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DSdDdyMb0p2U&...)
+        if "url" in query_params:
+            youtube_url = query_params["url"][0]
+            youtube_parsed = urlparse(youtube_url)
+            youtube_query_params = parse_qs(youtube_parsed.query)
+            if "v" in youtube_query_params:
+                return youtube_url, f'https://img.youtube.com/vi/{youtube_query_params["v"][0]}/maxresdefault.jpg'
+
+        # Case 3: YouTube short URL (e.g., https://youtu.be/SdDdyMb0p2U)
+        short_id_match = re.search(r"youtu\.be/([^?&]+)", url)
+        if short_id_match:
+            return url, f'https://img.youtube.com/vi/{short_id_match.group(1)}/maxresdefault.jpg'
+
+        if 'spotify' in url:
+            prefix = "https://open.spotify.com/oembed?url="
+            thumbnail_url = f"{prefix}{url}"
+
+            x = request.urlopen(thumbnail_url)
+            raw_data = x.read()
+            encoding = x.info().get_content_charset('utf8')  # JSON default
+            data = json.loads(raw_data.decode(encoding))
+            return url, data['thumbnail_url']
+        return None
+
+    def format_url(data):
+        base_url = "https://www.google.com/search?"
+        params = {"q": data}
+
+        # Encode the parameters and construct the URL
+        corrected_url = base_url + urlencode(params)
+        return corrected_url
 
 async def setup(bot: commands.Bot):
     '''Cog 載入 Bot'''
