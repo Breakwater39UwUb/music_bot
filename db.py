@@ -205,3 +205,58 @@ def check_exist_row(data: str,
     if result is None:
         return False
     return True
+
+def find_artists(name: str|int,
+                 table: str = TABLES['artists'],
+                 db = None):
+    '''
+    May return string that contains \\u3000
+    '''
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+    artists_names = []
+
+    # if not check_exist_table(table, db):
+    #     raise ValueError('Must given table name exist in database.')
+
+    try:
+        cursor = db.cursor()
+        if type(name) == int:
+            query = f"SELECT ArtistID, ArtistName FROM `{table}`\
+                WHERE ArtistID = %s"
+            cursor.execute(query, (name,))
+        elif type(name) == str:
+            query = f"SELECT ArtistID, ArtistName FROM `{table}`\
+            WHERE ArtistName LIKE %s\
+            OR ArtistName_Alt LIKE %s\
+            LIMIT 25"
+            cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
+
+    # Fetch and print the results
+    results = cursor.fetchall()
+    for row in results:
+        artists_names.append(row)
+
+    return artists_names
