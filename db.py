@@ -281,3 +281,13 @@ def submit_song(title: str,
     db.close()
 
     return (data)
+
+def add_song_tags(song_id: uuid.UUID,
+                  tags: list,
+                  table: str = TABLES['song_tags']):
+    '''Add tags to a song'''
+
+    db = db_pool.connection()
+    data = (song_id,) + tuple(tags)
+    insert_to_table(data, table, db)
+    db.close()
