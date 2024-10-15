@@ -10,6 +10,7 @@ import pymysql.err as sql_err
 from PIL import Image
 from urllib import request
 from urllib.parse import parse_qs, urlparse, urlencode
+from ytmusicapi import YTMusic
 import db
 
 class Music(commands.Cog):
@@ -31,7 +32,7 @@ class Music(commands.Cog):
             self.songData = songData
             '''[0]: song id, [1]: song title, [2]: artist,
             [3]:user id, [4]: url, [5]: thumbnail url'''
-            self.songData.append('')
+            # self.songData.append('') # songData[5], comment by url sharing
             moodMenu = Music.TagSelMenu.SongTags('Mood')
             typeMenu = Music.TagSelMenu.SongTags('Type')
             subBtn = discord.ui.Button(label='Submit')
@@ -51,7 +52,7 @@ class Music(commands.Cog):
             try:
                 embed=discord.Embed(title='Song submitted', description='The song you want to share has been submitted.', color=0x39c5bb)
                 # (ID, title, artist name, user ID)
-                self.songData[4], self.songData[5] = Music.get_thumbnail(self.songData[4])
+                # self.songData[4], self.songData[5] = Music.get_thumbnail(self.songData[4]) # comment by url sharing
                 artistURL = Music.format_url(self.songData[2])
                 embed.set_image(url=self.songData[5])
                 embed.add_field(name='Song ID', value=f'```{self.songData[0]}```', inline=False)
@@ -63,29 +64,21 @@ class Music(commands.Cog):
                 await interaction.followup.send(embed = embed)
             except Exception as e:
                 err_msg = f'Failed to submit song.\n{e}'
-                # await interaction.response.send_message(err_msg, ephemeral=True)
                 await interaction.followup.send(err_msg, ephemeral=True)
 
     class ModalClass(discord.ui.Modal, title = 'Share your recommendation.'):
         '''
         繼承 discord.ui.Modal 類別，並傳入 title 參數
         '''
-        # 宣告一個 TextInput Item 元素
-        songTitle = discord.ui.TextInput(label = 'Song Title')
-        songArtist = discord.ui.TextInput(label = 'Artist Name', required=False)
-        # songArtist.value = None
-        selector = None
+        artistNameBox = discord.ui.TextInput(label = 'Artist Name')
+        artistAltNameBox = discord.ui.TextInput(label = 'Artist Altnate Name', required=False)
 
         # Modal 提交後接著要執行的程式碼
         async def on_submit(self, interaction: discord.Interaction):
             # if self.songArtist.value != '':
             #     dynamicModal = View.ModalClass(title='Specify artist.')
-            #     dynamicModal.songTitle = self.songTitle
-            #     await interaction.response.send_modal(dynamicModal)
-
-            view = Music.TagSelMenu(timeout = 30)
-            print(view)
-            await interaction.response.send_message(view = view)
+            self.artistName = self.artistNameBox.value
+            self.artistAltName = self.artistAltNameBox.value
             # await interaction.response.send_message(
             #     f'Song title: {self.songTitle.value}, Artist: {self.songArtist}')
             # await interaction.response.autocomplete(SongTags)
@@ -102,7 +95,6 @@ class Music(commands.Cog):
         try:
             if artist_name is not None:
                 auto_artists = db.find_artists(artist_name)
-                # print(auto_artists)
                 return [
                     Choice(name=artist[1], value=str(artist[0]))
                     for artist in auto_artists
@@ -110,9 +102,29 @@ class Music(commands.Cog):
             else:
                 return []
         except sql_err.OperationalError as e:
-            # (2003, "Can't connect to MySQL server on '1.170.130.56' (timed out)")
             print(e)
-            await ctx.response.send_message(str(e))
+            await ctx.followup.send(str(e))
+
+    async def song_arg_autocomplete(
+        self,
+        ctx: discord.Interaction,
+        current: str
+    ) -> List[Choice[str]]:
+        user_option_input = ctx.data.get("options", [{}])[0].get("value")
+        artist_name = user_option_input if user_option_input else None
+        try:
+            if artist_name is not None:
+                auto_artists = db.find_artists(artist_name)
+                return [
+                    Choice(name=artist[1], value=str(artist[0]))
+                    for artist in auto_artists
+                ]
+            else:
+                return []
+        except sql_err.OperationalError as e:
+            print(e)
+            await ctx.followup.send(str(e))
+
     @app_commands.command(name = 'share_song', description = 'Share a song!')
     @app_commands.autocomplete(artist=artist_autocomplete)
     @app_commands.describe(song_title='song title', artist='artist name, if you don\'t know the name, skip it or type "UNKNOWN"', url='song url')
@@ -132,13 +144,62 @@ class Music(commands.Cog):
             # await interaction.response.send_message(err_msg, ephemeral=True)
             await interaction.followup.send(err_msg, ephemeral=True)
 
-    @app_commands.command(name = 'view_class', description = 'Class 版本 View 範例')
-    async def view_class(self, interaction: discord.Interaction):
-        # 創建一個 ViewClass 類別，並設置 30 秒超時
-        view = self.TagSelMenu(timeout = 30)
-        await interaction.response.send_message(view = view)
+    @app_commands.command(name = 'share_song_url', description = 'Share a song!')
+    # @app_commands.autocomplete(link=song_arg_autocomplete)
+    @app_commands.describe(link='song url')
+    async def share_song_url(self, interaction: discord.Interaction,
+                             link: str):
+        user = (interaction.user.id, interaction.user.name)
+        try:
+            await interaction.response.defer(ephemeral=True, thinking = True)
+            song_args = self.parse_song(link)
+            if db.find_artists(song_args[1]) == []:
+                await self.add_artist(interaction)
+            song_attr = tuple(db.submit_song(song_args[0], song_args[1], user))
+            song_attr += (link, song_args[2])
+            view = self.TagSelMenu(song_attr)
+            await interaction.followup.send(view = view)
+        except Exception as e:
+            err_msg = f'Failed to submit song.\n{e}'
+            await interaction.followup.send(err_msg, ephemeral=True)
 
-    def get_thumbnail(url):
+    async def add_artist(self, ctx: discord.Interaction):
+        await ctx.followup.send('It looks that the artist is not in our database.\nType the Artist Name to add one.')
+        message = await self.bot.wait_for("message", timeout=60.0)
+        artistName = message.content
+
+        await ctx.followup.send('Type the Artist Altnate Name, like his name in other languages.(type `-none` to skip)')
+        message = await self.bot.wait_for("message", timeout=60.0)
+        artistAltName = message.content if message.content != '-none' else None
+
+        await ctx.followup.send('Which record company this artist signed to?(type `-none` to skip)')
+        message = await self.bot.wait_for("message", timeout=60.0)
+        artistCompany = message.content if message.content != '-none' else None
+
+        db.insert_to_table((artistName, artistAltName, artistCompany), db.TABLES['artists'])
+
+    def parse_song(self, songLink):
+        '''Get song attributes from given song link.
+        
+        :param songLink: URL of song, valid platforms are
+        YouTube, Spotify, Tidal.
+
+        :return songAttr: (Title, Artist, Thumbnails)
+        '''
+        title = ''
+        artist = ''
+        thumbnail = ''
+
+        if 'youtube' in songLink or 'youtu.be' in songLink:
+            yt = YTMusic('oauth.json')
+            song = self.get_thumbnail(songLink)[2]
+            search_results = yt.search(query=song, limit=2)
+            title = search_results[0]['title']
+            artist = search_results[0]['artists'][0]['name']
+            thumbnail = search_results[0]['thumbnails'][-1]['url']
+        return title, artist, thumbnail
+
+    def get_thumbnail(self, url):
         # TODO: Add Apple Music and Tidal support
         # Parse the URL to get the query parameters
         parsed_url = urlparse(url)
@@ -146,7 +207,7 @@ class Music(commands.Cog):
 
         # Case 1: Standard YouTube URL (e.g., https://www.youtube.com/watch?v=SdDdyMb0p2U)
         if "v" in query_params:
-            return url, f'https://img.youtube.com/vi/{query_params["v"][0]}/maxresdefault.jpg'
+            return url, f'https://img.youtube.com/vi/{query_params["v"][0]}/maxresdefault.jpg', query_params["v"][0]
 
         # Case 2: Google redirect URL (e.g., https://www.google.com/url?...&url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DSdDdyMb0p2U&...)
         if "url" in query_params:
@@ -154,12 +215,12 @@ class Music(commands.Cog):
             youtube_parsed = urlparse(youtube_url)
             youtube_query_params = parse_qs(youtube_parsed.query)
             if "v" in youtube_query_params:
-                return youtube_url, f'https://img.youtube.com/vi/{youtube_query_params["v"][0]}/maxresdefault.jpg'
+                return youtube_url, f'https://img.youtube.com/vi/{youtube_query_params["v"][0]}/maxresdefault.jpg', youtube_query_params["v"][0]
 
         # Case 3: YouTube short URL (e.g., https://youtu.be/SdDdyMb0p2U)
         short_id_match = re.search(r"youtu\.be/([^?&]+)", url)
         if short_id_match:
-            return url, f'https://img.youtube.com/vi/{short_id_match.group(1)}/maxresdefault.jpg'
+            return url, f'https://img.youtube.com/vi/{short_id_match.group(1)}/maxresdefault.jpg', short_id_match.group(1)
 
         if 'spotify' in url:
             prefix = "https://open.spotify.com/oembed?url="
@@ -172,7 +233,7 @@ class Music(commands.Cog):
             return url, data['thumbnail_url']
         return None
 
-    def format_url(data):
+    def format_url(self, data):
         base_url = "https://www.google.com/search?"
         params = {"q": data}
 
