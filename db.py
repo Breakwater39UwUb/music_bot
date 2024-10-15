@@ -21,16 +21,6 @@ from dc_path import DB_CONFIG
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
 DEFAULT_DB_USER = 'dc_bot'
-DEFAULT_TABLE = 'songs'
-
-TABLES = {
-    'artists': 'artists',
-    'company': 'record_company',
-    'songs': 'songs',
-    'song_tags': 'tags',
-    'tag_labels': 'tag_labels',
-    'users': 'users'
-}
 
 log = utils.Debug_Logger('database')
 
