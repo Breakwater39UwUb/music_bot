@@ -64,6 +64,21 @@ except pymysql.MySQLError as e:
     )
     log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['localhost']}:{DB_CONFIG['port']}", 20)
 
+def fetch_tags(type: str, table: str = TABLES['tag_labels']):
+    tags = []
+    db = db_pool.connection()
+    cursor = db.cursor()
+    cursor.execute(f"SELECT TagName FROM `{table}` WHERE TagType = %s", (type,))
+    db.commit()
+
+    results = cursor.fetchall()
+    for row in results:
+        tags.append(row[0])
+    cursor.close()
+    db.close()
+
+    return tags
+
 def insert_to_table(data: tuple,
                     table: str = 'artists',
                     db=None):
