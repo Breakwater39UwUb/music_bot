@@ -64,25 +64,6 @@ except pymysql.MySQLError as e:
     )
     log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['localhost']}:{DB_CONFIG['port']}", 20)
 
-def fetch_all(table: str):
-    '''Download all reviews from given table'''
-
-    db = init_db()
-    if db is None:
-        return
-    cursor = db.cursor()
-    command = f"SELECT * FROM `{table}`"
-    cursor.execute(command)
-    reviews = cursor.fetchall()
-    db.close()
-
-    path = table + '.json'
-    
-    with open(path, 'w', encoding='utf-8') as file:
-        json.dump(reviews, file, ensure_ascii=False, indent=4)
-    print(f'Table saved to: {path}')
-    return reviews
-
 def insert_to_table(data: tuple,
                     table: str = 'artists',
                     db=None):
