@@ -160,3 +160,48 @@ def insert_to_table(data: tuple,
         cursor.close()
         if close_db:
             db.close()
+
+def check_exist_row(data: str,
+                    column: str,
+                    table: str,
+                    db = None):
+    '''Check if user exists'''
+
+    if table not in TABLES:
+        raise ValueError('Must given table name exist in database.')
+
+    query = f'SELECT * FROM `{table}` WHERE {column} = %s'
+
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+
+    try:
+        cursor = db.cursor()
+        cursor.execute(query, (data,))
+        result = cursor.fetchone()
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
+
+    if result is None:
+        return False
+    return True
