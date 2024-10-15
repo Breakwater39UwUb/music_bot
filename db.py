@@ -223,7 +223,7 @@ def submit_song(title: str,
 
     # db = init_db(user=DEFAULT_DB_USER, host='localhost')
     db = db_pool.connection()
-    if check_exist_user(recommender[0], db) == False:
+    if check_exist_row(recommender[0], db) == False:
         insert_to_table(recommender, TABLES['users'], db)
     data = [uuid.uuid4(), title, int(artist_id), recommender[0]]
     insert_to_table(tuple(data), table, db)
@@ -242,11 +242,16 @@ def add_song_tags(song_id: uuid.UUID,
     insert_to_table(data, table, db)
     db.close()
 
-def check_exist_user(userID: str,
-                     db = None):
+def check_exist_row(data: str,
+                    column: str,
+                    table: str,
+                    db = None):
     '''Check if user exists'''
 
-    query = f'SELECT * FROM `users` WHERE UserID = %s'
+    if table not in TABLES:
+        raise ValueError('Must given table name exist in database.')
+
+    query = f'SELECT * FROM `{table}` WHERE {column} = %s'
 
     if db is None:
         db = db_pool.connection()
@@ -255,7 +260,7 @@ def check_exist_user(userID: str,
 
     try:
         cursor = db.cursor()
-        cursor.execute(query, (userID,))
+        cursor.execute(query, (data,))
         result = cursor.fetchone()
     except OperationalError as e:
         raise OperationalError(f'{e}')
