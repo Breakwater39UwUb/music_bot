@@ -160,33 +160,3 @@ def insert_to_table(data: tuple,
         cursor.close()
         if close_db:
             db.close()
-
-def check_exist_table(table_name: str, db=None):
-    '''Check if the table is exist in database
-    
-    Parameters:
-    table_name: table name in innoserve database
-
-    Returns:
-    result: True if the table exists in database
-    '''
-
-    if db is None:
-        # No db object passed, initial one
-        db = init_db()
-
-        if db is None:
-            return
-        cursor = db.cursor()
-        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-        result = cursor.fetchone()
-        db.close()
-    else:
-        # Use given db object
-        cursor = db.cursor()
-        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-        result = cursor.fetchone()
-
-    if result is None:
-        return False
-    return True
