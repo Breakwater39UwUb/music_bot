@@ -21,69 +21,6 @@ TABLES = {
     'users': 'users'
 }
 
-def db_upload_file(filename: str,
-                   host_name: str = 'localhost',
-                   db_name: str = DEFAULT_DB,
-                   table_name: str = 'rumors',
-                   file_format: str = 'json'):
-    """Upload in given file
-
-    Args:
-        filename: File under ./SaveData/
-        db_name: Database to connect, default connect to innoserve database
-        file_format: Default = 'json'
-    No returns
-    """
-
-    if file_format not in ['csv', 'json']:
-        raise Exception('file_format must be csv or json')
-    
-    db = init_db(db_name, host_name)
-    log = utils.Debug_Logger('init_db')
-
-    if db is None:
-        log.log('Failed to connect to MySQL database.', 30)
-        return
-
-    cursor = db.cursor()
-    cursor.execute("SET NAMES utf8mb4")
-    cursor.execute("SET CHARACTER SET utf8mb4")
-    cursor.execute("SET character_set_connection=utf8mb4")
-    # cursor.execute(command)
-
-    with open(filename, 'r', encoding='utf-8') as file:
-        if file_format == 'csv':
-            lines = csv.reader(file)
-        if file_format == 'json':
-            lines = json.load(file)
-
-        for line in lines:
-            # Update table
-            command = f"INSERT INTO {table_name}\
-                (id, publish_date, title, tag, content) VALUES\
-                (%s, %s, %s, %s, %s)"
-
-            if file_format == 'csv':
-                id, publish_date, title, tag, content = line[0], line[1], line[2], line[3], line[4]
-            if file_format == 'json':
-                id = int(line['id'])
-                publish_date = line['date']
-                title = line['title']
-                tag = line['tag']
-                content = line['content']
-
-            article = (id, publish_date, title, tag, content)
-
-            try:
-                cursor.execute(command, article)
-                db.commit()
-            except pymysql.IntegrityError as e:
-                if e.args[0] == DUP_ENTRY:
-                    log.log(e)
-                    pass
-        db.close()
-        log.log(f'{filename} uploaded successfully.')
-
 def fetch_all(table: str):
     '''Download all reviews from given table'''
 
