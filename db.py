@@ -1,12 +1,22 @@
 '''Module for db connection and usage'''
-# TODO: Remove all db objects and state flow in functions after code review
 
-import pymysql
-from pymysql.constants.ER import DUP_ENTRY
+from dbutils.pooled_db import PooledDB
 import csv
 import json
-import utils
 import uuid
+from datetime import datetime
+import pymysql
+from pymysql.constants.ER import DUP_ENTRY
+import pymysql.err as sqlError
+from pymysql.err import(
+    OperationalError,
+    IntegrityError,
+    ProgrammingError,
+    DataError,
+    InternalError,
+    NotSupportedError)
+import utils
+from dc_path import DB_CONFIG
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
@@ -20,6 +30,39 @@ TABLES = {
     'tag_labels': 'tag_labels',
     'users': 'users'
 }
+
+log = utils.Debug_Logger('database')
+
+try:
+    db_pool = PooledDB(
+        pymysql,
+        maxconnections=10,
+        mincached=2,
+        maxcached=5,
+        blocking=True,
+        ping=4,
+        host=DB_CONFIG['remotehost'],
+        port=DB_CONFIG['port'],
+        user=DB_CONFIG['user'],
+        password=DB_CONFIG['password'],
+        database=DB_CONFIG['db_name']
+    )
+    log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['remotehost']}:{DB_CONFIG['port']}", 20)
+except pymysql.MySQLError as e:
+    db_pool = PooledDB(
+        pymysql,
+        maxconnections=10,
+        mincached=2,
+        maxcached=5,
+        blocking=True,
+        ping=4,
+        host=DB_CONFIG['localhost'],
+        port=DB_CONFIG['port'],
+        user=DB_CONFIG['user'],
+        password=DB_CONFIG['password'],
+        database=DB_CONFIG['db_name']
+    )
+    log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['localhost']}:{DB_CONFIG['port']}", 20)
 
 def fetch_all(table: str):
     '''Download all reviews from given table'''
