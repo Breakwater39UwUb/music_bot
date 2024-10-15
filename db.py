@@ -260,3 +260,24 @@ def find_artists(name: str|int,
         artists_names.append(row)
 
     return artists_names
+
+def submit_song(title: str,
+                artist_id: int,
+                recommender: tuple,
+                table: str = TABLES['songs']):
+    '''Submit a new song
+
+    :param tuple recommender: (user_id, user_name)
+    :return (tuple) data: (ID, title, artist name, user ID)
+    '''
+
+    # db = init_db(user=DEFAULT_DB_USER, host='localhost')
+    db = db_pool.connection()
+    if check_exist_row(recommender[0], db) == False:
+        insert_to_table(recommender, TABLES['users'], db)
+    data = [uuid.uuid4(), title, int(artist_id), recommender[0]]
+    insert_to_table(tuple(data), table, db)
+    data[2] = find_artists(name=data[2], db=db)[0][1]
+    db.close()
+
+    return (data)
