@@ -1,110 +1,77 @@
 '''Module for db connection and usage'''
-# TODO: Remove all db objects and state flow in functions after code review
 
-import pymysql
-from pymysql.constants.ER import DUP_ENTRY
+from dbutils.pooled_db import PooledDB
 import csv
 import json
-import utils
 import uuid
+from datetime import datetime
+import pymysql
+from pymysql.constants.ER import DUP_ENTRY
+import pymysql.err as sqlError
+from pymysql.err import(
+    OperationalError,
+    IntegrityError,
+    ProgrammingError,
+    DataError,
+    InternalError,
+    NotSupportedError)
+import utils
+from dc_path import DB_CONFIG
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
-DEFAULT_TABLE = 'songs'
+DEFAULT_DB_USER = 'dc_bot'
 
-TABLES = {
-    'artists': 'artists',
-    'company': 'record_company',
-    'songs': 'songs',
-    'song_tags': 'tags',
-    'tag_labels': 'tag_labels',
-    'users': 'users'
-}
+log = utils.Debug_Logger('database')
 
-def db_upload_file(filename: str,
-                   host_name: str = 'localhost',
-                   db_name: str = DEFAULT_DB,
-                   table_name: str = 'rumors',
-                   file_format: str = 'json'):
-    """Upload in given file
+try:
+    db_pool = PooledDB(
+        pymysql,
+        maxconnections=10,
+        mincached=2,
+        maxcached=5,
+        blocking=True,
+        ping=4,
+        host=DB_CONFIG['remotehost'],
+        port=DB_CONFIG['port'],
+        user=DB_CONFIG['user'],
+        password=DB_CONFIG['password'],
+        database=DB_CONFIG['db_name']
+    )
+    log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['remotehost']}:{DB_CONFIG['port']}", 20)
+except pymysql.MySQLError as e:
+    db_pool = PooledDB(
+        pymysql,
+        maxconnections=10,
+        mincached=2,
+        maxcached=5,
+        blocking=True,
+        ping=4,
+        host=DB_CONFIG['localhost'],
+        port=DB_CONFIG['port'],
+        user=DB_CONFIG['user'],
+        password=DB_CONFIG['password'],
+        database=DB_CONFIG['db_name']
+    )
+    log.log(f"Connected to {DB_CONFIG['user']}@{DB_CONFIG['localhost']}:{DB_CONFIG['port']}", 20)
 
-    Args:
-        filename: File under ./SaveData/
-        db_name: Database to connect, default connect to innoserve database
-        file_format: Default = 'json'
-    No returns
-    """
-
-    if file_format not in ['csv', 'json']:
-        raise Exception('file_format must be csv or json')
-    
-    db = init_db(db_name, host_name)
-    log = utils.Debug_Logger('init_db')
-
-    if db is None:
-        log.log('Failed to connect to MySQL database.', 30)
-        return
-
+def fetch_tags(type: str, table: str = TABLES['tag_labels']):
+    tags = []
+    db = db_pool.connection()
     cursor = db.cursor()
-    cursor.execute("SET NAMES utf8mb4")
-    cursor.execute("SET CHARACTER SET utf8mb4")
-    cursor.execute("SET character_set_connection=utf8mb4")
-    # cursor.execute(command)
+    cursor.execute(f"SELECT TagName FROM `{table}` WHERE TagType = %s", (type,))
+    db.commit()
 
-    with open(filename, 'r', encoding='utf-8') as file:
-        if file_format == 'csv':
-            lines = csv.reader(file)
-        if file_format == 'json':
-            lines = json.load(file)
-
-        for line in lines:
-            # Update table
-            command = f"INSERT INTO {table_name}\
-                (id, publish_date, title, tag, content) VALUES\
-                (%s, %s, %s, %s, %s)"
-
-            if file_format == 'csv':
-                id, publish_date, title, tag, content = line[0], line[1], line[2], line[3], line[4]
-            if file_format == 'json':
-                id = int(line['id'])
-                publish_date = line['date']
-                title = line['title']
-                tag = line['tag']
-                content = line['content']
-
-            article = (id, publish_date, title, tag, content)
-
-            try:
-                cursor.execute(command, article)
-                db.commit()
-            except pymysql.IntegrityError as e:
-                if e.args[0] == DUP_ENTRY:
-                    log.log(e)
-                    pass
-        db.close()
-        log.log(f'{filename} uploaded successfully.')
-
-def fetch_all(table: str):
-    '''Download all reviews from given table'''
-
-    db = init_db()
-    if db is None:
-        return
-    cursor = db.cursor()
-    command = f"SELECT * FROM `{table}`"
-    cursor.execute(command)
-    reviews = cursor.fetchall()
+    results = cursor.fetchall()
+    for row in results:
+        tags.append(row[0])
+    cursor.close()
     db.close()
 
-    path = table + '.json'
-    
-    with open(path, 'w', encoding='utf-8') as file:
-        json.dump(reviews, file, ensure_ascii=False, indent=4)
-    print(f'Table saved to: {path}')
-    return reviews
+    return tags
 
 def insert_to_table(data: tuple,
-                    table: str = 'artists',
+                    table: str,
                     db=None):
     """
     Inserts a new record into the specified table in the database.
@@ -125,12 +92,13 @@ def insert_to_table(data: tuple,
     None
     """
     if db is None:
-        db = init_db()
-        if db is None:
-            return 'failed'
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+    # db.ping(True)
 
-    if not check_exist_table(table, db):
-        raise ValueError('Must given table name exist in database.')
+    # if not check_exist_table(table, db):
+    #     raise ValueError('Must given table name exist in database.')
 
     commands = {
         TABLES['artists']: f"INSERT INTO `{table}` (`ArtistName`, `ArtistName_Alt`, `Company`) VALUES(%s, %s, %s)",
@@ -141,96 +109,213 @@ def insert_to_table(data: tuple,
         TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)"
     }
 
-    cursor = db.cursor()
     try:
-        cursor.execute(commands[table], data)
-        db.commit()
-    except pymysql.IntegrityError as e:
-        if e.args[0] == 1452:
-            print("IntegrityError: 1452 - Foreign key constraint failed.")
+        cursor = db.cursor()
+        if table == TABLES['song_tags']:
+            for tag in data[1]:
+                cursor.execute(commands[table], (data[0], tag))
         else:
-            print(f"Unexpected IntegrityError: {e.args[0]}")
+            cursor.execute(commands[table], data)
+        db.commit()
+    except OperationalError as e:
+        db.rollback()
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        db.rollback()
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        db.rollback()
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        db.rollback()
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        db.rollback()
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        db.rollback()
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        db.rollback()
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        db.rollback()
+        raise unexpected
     finally:
-        db.close()
+        cursor.close()
+        if close_db:
+            db.close()
 
+def find_artists(name: str|int,
+                 table: str = TABLES['artists'],
+                 db = None):
+    '''
+    May return string that contains \\u3000
+    '''
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+    artists_names = []
 
+    # if not check_exist_table(table, db):
+    #     raise ValueError('Must given table name exist in database.')
 
-def check_exist_table(table_name: str, db=None):
-    '''Check if the table is exist in database
-    
-    Parameters:
-    table_name: table name in innoserve database
+    try:
+        cursor = db.cursor()
+        if type(name) == int:
+            query = f"SELECT ArtistID, ArtistName FROM `{table}`\
+                WHERE ArtistID = %s"
+            cursor.execute(query, (name,))
+        elif type(name) == str:
+            query = f"SELECT ArtistID, ArtistName FROM `{table}`\
+            WHERE ArtistName LIKE %s\
+            OR ArtistName_Alt LIKE %s\
+            LIMIT 25"
+            cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
 
-    Returns:
-    result: True if the table exists in database
+    # Fetch and print the results
+    results = cursor.fetchall()
+    for row in results:
+        artists_names.append(row)
+
+    return artists_names
+
+def submit_song(title: str,
+                artist_id: int,
+                recommender: tuple,
+                table: str = TABLES['songs']):
+    '''Submit a new song
+
+    :param tuple recommender: (user_id, user_name)
+    :return (tuple) data: (ID, title, artist name, user ID)
     '''
 
-    if db is None:
-        # No db object passed, initial one
-        db = init_db()
+    # db = init_db(user=DEFAULT_DB_USER, host='localhost')
+    db = db_pool.connection()
+    if check_exist_row(recommender[0], db) == False:
+        insert_to_table(recommender, TABLES['users'], db)
+    data = [uuid.uuid4(), title, int(artist_id), recommender[0]]
+    insert_to_table(tuple(data), table, db)
+    data[2] = find_artists(name=data[2], db=db)[0][1]
+    db.close()
 
-        if db is None:
-            return
+    return (data)
+
+def add_song_tags(song_id: uuid.UUID,
+                  tags: list,
+                  table: str = TABLES['song_tags']):
+    '''Add tags to a song'''
+
+    db = db_pool.connection()
+    data = (song_id,) + tuple(tags)
+    insert_to_table(data, table, db)
+    db.close()
+
+def check_exist_row(data: str,
+                    column: str,
+                    table: str,
+                    db = None):
+    '''Check if user exists'''
+
+    if table not in TABLES:
+        raise ValueError('Must given table name exist in database.')
+
+    query = f'SELECT * FROM `{table}` WHERE {column} = %s'
+
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+
+    try:
         cursor = db.cursor()
-        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+        cursor.execute(query, (data,))
         result = cursor.fetchone()
-        db.close()
-    else:
-        # Use given db object
-        cursor = db.cursor()
-        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-        result = cursor.fetchone()
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
 
     if result is None:
         return False
     return True
 
-def get_connection_args(remote: str='localhost') -> tuple:
-    """
-    Retrieve the connection arguments for a MySQL database based on the specified remote host.
+# def init_db(user: str = 'root',
+#             db_name: str = DEFAULT_DB_USER,
+#             host: str = 'localhost') -> pymysql.connections.Connection:
+#     """
+#     Initialize a connection to a MySQL database.
 
-    This function returns a tuple containing the host IP, port number, and password for connecting to the MySQL database.
-    The function supports two remote hosts: 'localhost' and 'lab404'. If no remote host is specified, the default is 'localhost'.
+#     This function attempts to establish a connection to a MySQL database using the provided user, database name, and host.
+#     If the connection fails, it logs an error message and returns None.
 
-    :param remote (str): The remote host for the MySQL database. It can be either 'localhost' or 'lab404'. Default is 'localhost'.
+#     :param user (str): The username for the MySQL database. Default is 'root'.
+#     :param db_name (str): The name of the MySQL database. Default is 'dc_bot'.
+#     :param host (str): The host of the MySQL database. Default is 'localhost'.
 
-    Returns:
-    tuple: A tuple containing the host IP, port number, and password for connecting to the MySQL database.
-    """
-    if remote == 'localhost':
-        return 'localhost', 3306, 'root'
-    if remote == 'lab404':
-        return '192.168.196.201', 3306, 'lab404'
+#     Returns:
+#     pymysql.connections.Connection: A connection object to the MySQL database if successful, otherwise None.
+#     """
+#     log = utils.Debug_Logger(__name__)
+#     forward_ip, forward_port, pwd = get_connection_args(host)
 
-
-def init_db(user: str = 'root',
-            db_name: str = 'dc_bot',
-            host: str = 'localhost') -> pymysql.connections.Connection:
-    """
-    Initialize a connection to a MySQL database.
-
-    This function attempts to establish a connection to a MySQL database using the provided user, database name, and host.
-    If the connection fails, it logs an error message and returns None.
-
-    :param user (str): The username for the MySQL database. Default is 'root'.
-    :param db_name (str): The name of the MySQL database. Default is 'dc_bot'.
-    :param host (str): The host of the MySQL database. Default is 'localhost'.
-
-    Returns:
-    pymysql.connections.Connection: A connection object to the MySQL database if successful, otherwise None.
-    """
-    log = utils.Debug_Logger('init_db')
-
-    forward_ip, forward_port, pwd = get_connection_args(host)
-
-    try:
-        return pymysql.connect(host=forward_ip,
-                               port=forward_port,
-                               user=user,
-                               database=db_name,
-                               password=pwd,
-                               charset='utf8mb4')
-    except pymysql.err.OperationalError as err:
-        log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 30)
-        return None
-
+#     try:
+#         return pymysql.connect(host=forward_ip,
+#                                port=forward_port,
+#                                user=user,
+#                                database=db_name,
+#                                password=pwd,
+#                                charset='utf8mb4')
+#     except OperationalError as err:
+#         forward_ip, forward_port, pwd = get_connection_args('localhost')
+#         log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 40)
+#         log.log(f'Trying to connect localhost: {forward_ip}\nport: {forward_port}', 40)
+#         try:
+#             return pymysql.connect(host=forward_ip,
+#                         port=forward_port,
+#                         user=user,
+#                         database=db_name,
+#                         password=pwd,
+#                         charset='utf8mb4')
+#         except OperationalError as err:
+#             log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 40)
+#             raise err
+#     except Exception as err:
+#         raise err
