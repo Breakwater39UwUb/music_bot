@@ -121,20 +121,3 @@ def check_exist_table(table_name: str, db=None):
     if result is None:
         return False
     return True
-
-def get_connection_args(remote: str='localhost') -> tuple:
-    """
-    Retrieve the connection arguments for a MySQL database based on the specified remote host.
-
-    This function returns a tuple containing the host IP, port number, and password for connecting to the MySQL database.
-    The function supports two remote hosts: 'localhost' and 'lab404'. If no remote host is specified, the default is 'localhost'.
-
-    :param remote (str): The remote host for the MySQL database. It can be either 'localhost' or 'lab404'. Default is 'localhost'.
-
-    Returns:
-    tuple: A tuple containing the host IP, port number, and password for connecting to the MySQL database.
-    """
-    if remote == 'localhost':
-        return 'localhost', 3306, 'root'
-    if remote == 'lab404':
-        return '192.168.196.201', 3306, 'lab404'
