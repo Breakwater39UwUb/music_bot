@@ -80,33 +80,40 @@ def fetch_tags(type: str, table: str = TABLES['tag_labels']):
     return tags
 
 def insert_to_table(data: tuple,
-                    table: str = 'artists',
+                    table: str,
                     db=None):
     """
-    Inserts a new record into the specified table in the database.
+    Inserts a record into the specified table in the database. If no database connection is provided, 
+    a new connection is obtained from the connection pool.
 
-    This function connects to the database using the provided connection object (db). If no connection object is provided,
-    it attempts to initialize a new connection using the default database settings. The function then checks if the specified
-    table exists in the database. If the table does not exist, it raises a ValueError.
-
-    After ensuring the table exists, the function constructs an INSERT command based on the table name and the provided data.
-    It executes the command using the cursor and commits the changes to the database. Finally, it closes the database connection.
-
-    Parameters:
-    data (tuple): A tuple containing the values to be inserted into the table.
-    table (str): The name of the table in the database. Default is 'artists'.
-    db (pymysql.connections.Connection): The database connection object. If not provided, a new connection will be initialized.
-
-    Returns:
-    None
+    :param data: The data to be inserted, structured as a tuple. The format should match the columns expected 
+                 by the specified table. For example, for the 'artists' table, it should be (ArtistName, ArtistName_Alt, Company).
+    :type data: tuple
+    :param table: The name of the table to insert data into. Must correspond to an entry in the TABLES dictionary, 
+                  which maps table names to their respective INSERT commands.
+    :type table: str
+    :param db: A database connection object. If None, a new connection is created from the database pool.
+               Defaults to None.
+    :type db: Optional[Connection]
+    
+    :raises OperationalError: If an error related to the database's operation occurs.
+    :raises IntegrityError: If the insert violates a constraint, such as a unique or foreign key constraint.
+    :raises ProgrammingError: If there's an error in the SQL syntax.
+    :raises DataError: If the data provided is out of range or otherwise incorrect.
+    :raises InternalError: If the database encounters an internal error.
+    :raises NotSupportedError: If the attempted operation is not supported by the database.
+    :raises pymysql.MySQLError: For any other MySQL-specific errors.
+    :raises Exception: For any other unexpected errors.
+    
+    :note: The function commits the transaction if the insert is successful. In case of an error, 
+           it rolls back the transaction.
+    :note: If `table` is 'song_tags', the function will insert multiple rows for each tag in the second element 
+           of the data tuple.
     """
     if db is None:
-        db = init_db()
-        if db is None:
-            return 'failed'
-
-    if not check_exist_table(table, db):
-        raise ValueError('Must given table name exist in database.')
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
 
     commands = {
         TABLES['artists']: f"INSERT INTO `{table}` (`ArtistName`, `ArtistName_Alt`, `Company`) VALUES(%s, %s, %s)",
@@ -117,19 +124,42 @@ def insert_to_table(data: tuple,
         TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)"
     }
 
-    cursor = db.cursor()
     try:
-        cursor.execute(commands[table], data)
-        db.commit()
-    except pymysql.IntegrityError as e:
-        if e.args[0] == 1452:
-            print("IntegrityError: 1452 - Foreign key constraint failed.")
+        cursor = db.cursor()
+        if table == TABLES['song_tags']:
+            for tag in data[1]:
+                cursor.execute(commands[table], (data[0], tag))
         else:
-            print(f"Unexpected IntegrityError: {e.args[0]}")
+            cursor.execute(commands[table], data)
+        db.commit()
+    except OperationalError as e:
+        db.rollback()
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        db.rollback()
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        db.rollback()
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        db.rollback()
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        db.rollback()
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        db.rollback()
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        db.rollback()
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        db.rollback()
+        raise unexpected
     finally:
-        db.close()
-
-
+        cursor.close()
+        if close_db:
+            db.close()
 
 def check_exist_table(table_name: str, db=None):
     '''Check if the table is exist in database
