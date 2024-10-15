@@ -138,36 +138,3 @@ def get_connection_args(remote: str='localhost') -> tuple:
         return 'localhost', 3306, 'root'
     if remote == 'lab404':
         return '192.168.196.201', 3306, 'lab404'
-
-
-def init_db(user: str = 'root',
-            db_name: str = 'dc_bot',
-            host: str = 'localhost') -> pymysql.connections.Connection:
-    """
-    Initialize a connection to a MySQL database.
-
-    This function attempts to establish a connection to a MySQL database using the provided user, database name, and host.
-    If the connection fails, it logs an error message and returns None.
-
-    :param user (str): The username for the MySQL database. Default is 'root'.
-    :param db_name (str): The name of the MySQL database. Default is 'dc_bot'.
-    :param host (str): The host of the MySQL database. Default is 'localhost'.
-
-    Returns:
-    pymysql.connections.Connection: A connection object to the MySQL database if successful, otherwise None.
-    """
-    log = utils.Debug_Logger('init_db')
-
-    forward_ip, forward_port, pwd = get_connection_args(host)
-
-    try:
-        return pymysql.connect(host=forward_ip,
-                               port=forward_port,
-                               user=user,
-                               database=db_name,
-                               password=pwd,
-                               charset='utf8mb4')
-    except pymysql.err.OperationalError as err:
-        log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 30)
-        return None
-
