@@ -21,7 +21,7 @@ from dc_path import DB_CONFIG
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
 DEFAULT_TABLE = 'songs'
-
+DEFAULT_DB_USER = 'dc_bot'
 TABLES = {
     'artists': 'artists',
     'company': 'record_company',
@@ -117,7 +117,7 @@ def insert_to_table(data: tuple,
 
     commands = {
         TABLES['artists']: f"INSERT INTO `{table}` (`ArtistName`, `ArtistName_Alt`, `Company`) VALUES(%s, %s, %s)",
-        TABLES['company']: f"INSERT INTO `{table}` (`ID`, `Name`) VALUES(%s, %s)",
+        TABLES['company']: f"INSERT INTO `{table}` (`Name`, `Name_Alt`) VALUES(%s, %s)",
         TABLES['songs']: f"INSERT INTO `{table}` (`ID`, `Title`, `Artist`, `Recommender`) VALUES(%s, %s, %s, %s)",
         TABLES['song_tags']: f"INSERT INTO `{table}` (`SongID`, `Tag`) VALUES(%s, %s)",
         TABLES['tag_labels']: f"INSERT INTO `{table}` (`ID`, `TagType`, `TagName`) VALUES(%s, %s, %s)",
@@ -260,6 +260,57 @@ def find_artists(name: str|int,
         artists_names.append(row)
 
     return artists_names
+
+def find_company(name: str|int,
+                 table: str = TABLES['company'],
+                 db = None):
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+    comany_names = []
+
+    # if not check_exist_table(table, db):
+    #     raise ValueError('Must given table name exist in database.')
+
+    try:
+        cursor = db.cursor()
+        if type(name) == int:
+            query = f"SELECT ID, Name FROM `{table}` WHERE ID = %s"
+            cursor.execute(query, (name,))
+        elif type(name) == str:
+            query = f"SELECT * FROM `{table}`\
+            WHERE Name LIKE %s 
+            OR Name_Alt LIKE %s
+            LIMIT 25"
+            cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
+
+    # Fetch and print the results
+    results = cursor.fetchall()
+    for row in results:
+        comany_names.append(row)
+
+    return comany_names
 
 def submit_song(title: str,
                 artist_id: int,
