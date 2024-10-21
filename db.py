@@ -20,7 +20,16 @@ from dc_path import DB_CONFIG
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
+DEFAULT_TABLE = 'songs'
 DEFAULT_DB_USER = 'dc_bot'
+TABLES = {
+    'artists': 'artists',
+    'company': 'record_company',
+    'songs': 'songs',
+    'song_tags': 'tags',
+    'tag_labels': 'tag_labels',
+    'users': 'users'
+}
 
 log = utils.Debug_Logger('database')
 
@@ -74,35 +83,41 @@ def insert_to_table(data: tuple,
                     table: str,
                     db=None):
     """
-    Inserts a new record into the specified table in the database.
+    Inserts a record into the specified table in the database. If no database connection is provided, 
+    a new connection is obtained from the connection pool.
 
-    This function connects to the database using the provided connection object (db). If no connection object is provided,
-    it attempts to initialize a new connection using the default database settings. The function then checks if the specified
-    table exists in the database. If the table does not exist, it raises a ValueError.
-
-    After ensuring the table exists, the function constructs an INSERT command based on the table name and the provided data.
-    It executes the command using the cursor and commits the changes to the database. Finally, it closes the database connection.
-
-    Parameters:
-    data (tuple): A tuple containing the values to be inserted into the table.
-    table (str): The name of the table in the database. Default is 'artists'.
-    db (pymysql.connections.Connection): The database connection object. If not provided, a new connection will be initialized.
-
-    Returns:
-    None
+    :param data: The data to be inserted, structured as a tuple. The format should match the columns expected 
+                 by the specified table. For example, for the 'artists' table, it should be (ArtistName, ArtistName_Alt, Company).
+    :type data: tuple
+    :param table: The name of the table to insert data into. Must correspond to an entry in the TABLES dictionary, 
+                  which maps table names to their respective INSERT commands.
+    :type table: str
+    :param db: A database connection object. If None, a new connection is created from the database pool.
+               Defaults to None.
+    :type db: Optional[Connection]
+    
+    :raises OperationalError: If an error related to the database's operation occurs.
+    :raises IntegrityError: If the insert violates a constraint, such as a unique or foreign key constraint.
+    :raises ProgrammingError: If there's an error in the SQL syntax.
+    :raises DataError: If the data provided is out of range or otherwise incorrect.
+    :raises InternalError: If the database encounters an internal error.
+    :raises NotSupportedError: If the attempted operation is not supported by the database.
+    :raises pymysql.MySQLError: For any other MySQL-specific errors.
+    :raises Exception: For any other unexpected errors.
+    
+    :note: The function commits the transaction if the insert is successful. In case of an error, 
+           it rolls back the transaction.
+    :note: If `table` is 'song_tags', the function will insert multiple rows for each tag in the second element 
+           of the data tuple.
     """
     if db is None:
         db = db_pool.connection()
         close_db = True
     close_db = False
-    # db.ping(True)
-
-    # if not check_exist_table(table, db):
-    #     raise ValueError('Must given table name exist in database.')
 
     commands = {
         TABLES['artists']: f"INSERT INTO `{table}` (`ArtistName`, `ArtistName_Alt`, `Company`) VALUES(%s, %s, %s)",
-        TABLES['company']: f"INSERT INTO `{table}` (`ID`, `Name`) VALUES(%s, %s)",
+        TABLES['company']: f"INSERT INTO `{table}` (`Name`, `Name_Alt`) VALUES(%s, %s)",
         TABLES['songs']: f"INSERT INTO `{table}` (`ID`, `Title`, `Artist`, `Recommender`) VALUES(%s, %s, %s, %s)",
         TABLES['song_tags']: f"INSERT INTO `{table}` (`SongID`, `Tag`) VALUES(%s, %s)",
         TABLES['tag_labels']: f"INSERT INTO `{table}` (`ID`, `TagType`, `TagName`) VALUES(%s, %s, %s)",
@@ -145,6 +160,51 @@ def insert_to_table(data: tuple,
         cursor.close()
         if close_db:
             db.close()
+
+def check_exist_row(data: str,
+                    column: str,
+                    table: str,
+                    db = None):
+    '''Check if user exists'''
+
+    if table not in TABLES:
+        raise ValueError('Must given table name exist in database.')
+
+    query = f'SELECT * FROM `{table}` WHERE {column} = %s'
+
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+
+    try:
+        cursor = db.cursor()
+        cursor.execute(query, (data,))
+        result = cursor.fetchone()
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
+
+    if result is None:
+        return False
+    return True
 
 def find_artists(name: str|int,
                  table: str = TABLES['artists'],
@@ -201,6 +261,57 @@ def find_artists(name: str|int,
 
     return artists_names
 
+def find_company(name: str|int,
+                 table: str = TABLES['company'],
+                 db = None):
+    if db is None:
+        db = db_pool.connection()
+        close_db = True
+    close_db = False
+    comany_names = []
+
+    # if not check_exist_table(table, db):
+    #     raise ValueError('Must given table name exist in database.')
+
+    try:
+        cursor = db.cursor()
+        if type(name) == int:
+            query = f"SELECT ID, Name FROM `{table}` WHERE ID = %s"
+            cursor.execute(query, (name,))
+        elif type(name) == str:
+            query = f"SELECT * FROM `{table}`\
+            WHERE Name LIKE %s 
+            OR Name_Alt LIKE %s
+            LIMIT 25"
+            cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
+    except OperationalError as e:
+        raise OperationalError(f'{e}')
+    except IntegrityError as e:
+        raise IntegrityError(f'{e}')
+    except ProgrammingError as e:
+        raise ProgrammingError(f'{e}')
+    except DataError as e:
+        raise DataError(f'{e[1]}')
+    except InternalError as e:
+        raise InternalError(f'{e}')
+    except NotSupportedError as e:
+        raise NotSupportedError(f'{e}')
+    except pymysql.MySQLError as e:
+        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
+    except Exception as unexpected:
+        raise unexpected
+    finally:
+        cursor.close()
+        if close_db:
+            db.close()
+
+    # Fetch and print the results
+    results = cursor.fetchall()
+    for row in results:
+        comany_names.append(row)
+
+    return comany_names
+
 def submit_song(title: str,
                 artist_id: int,
                 recommender: tuple,
@@ -231,91 +342,3 @@ def add_song_tags(song_id: uuid.UUID,
     data = (song_id,) + tuple(tags)
     insert_to_table(data, table, db)
     db.close()
-
-def check_exist_row(data: str,
-                    column: str,
-                    table: str,
-                    db = None):
-    '''Check if user exists'''
-
-    if table not in TABLES:
-        raise ValueError('Must given table name exist in database.')
-
-    query = f'SELECT * FROM `{table}` WHERE {column} = %s'
-
-    if db is None:
-        db = db_pool.connection()
-        close_db = True
-    close_db = False
-
-    try:
-        cursor = db.cursor()
-        cursor.execute(query, (data,))
-        result = cursor.fetchone()
-    except OperationalError as e:
-        raise OperationalError(f'{e}')
-    except IntegrityError as e:
-        raise IntegrityError(f'{e}')
-    except ProgrammingError as e:
-        raise ProgrammingError(f'{e}')
-    except DataError as e:
-        raise DataError(f'{e[1]}')
-    except InternalError as e:
-        raise InternalError(f'{e}')
-    except NotSupportedError as e:
-        raise NotSupportedError(f'{e}')
-    except pymysql.MySQLError as e:
-        raise pymysql.MySQLError(f"MySQL error occurred: {e}")
-    except Exception as unexpected:
-        raise unexpected
-    finally:
-        cursor.close()
-        if close_db:
-            db.close()
-
-    if result is None:
-        return False
-    return True
-
-# def init_db(user: str = 'root',
-#             db_name: str = DEFAULT_DB_USER,
-#             host: str = 'localhost') -> pymysql.connections.Connection:
-#     """
-#     Initialize a connection to a MySQL database.
-
-#     This function attempts to establish a connection to a MySQL database using the provided user, database name, and host.
-#     If the connection fails, it logs an error message and returns None.
-
-#     :param user (str): The username for the MySQL database. Default is 'root'.
-#     :param db_name (str): The name of the MySQL database. Default is 'dc_bot'.
-#     :param host (str): The host of the MySQL database. Default is 'localhost'.
-
-#     Returns:
-#     pymysql.connections.Connection: A connection object to the MySQL database if successful, otherwise None.
-#     """
-#     log = utils.Debug_Logger(__name__)
-#     forward_ip, forward_port, pwd = get_connection_args(host)
-
-#     try:
-#         return pymysql.connect(host=forward_ip,
-#                                port=forward_port,
-#                                user=user,
-#                                database=db_name,
-#                                password=pwd,
-#                                charset='utf8mb4')
-#     except OperationalError as err:
-#         forward_ip, forward_port, pwd = get_connection_args('localhost')
-#         log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 40)
-#         log.log(f'Trying to connect localhost: {forward_ip}\nport: {forward_port}', 40)
-#         try:
-#             return pymysql.connect(host=forward_ip,
-#                         port=forward_port,
-#                         user=user,
-#                         database=db_name,
-#                         password=pwd,
-#                         charset='utf8mb4')
-#         except OperationalError as err:
-#             log.log(f'Error connecting to MySQL database, check your database host and port.\nhost: {forward_ip}\nport: {forward_port}', 40)
-#             raise err
-#     except Exception as err:
-#         raise err
