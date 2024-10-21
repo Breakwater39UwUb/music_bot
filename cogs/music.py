@@ -27,9 +27,10 @@ class Music(commands.Cog):
                 super().__init__(placeholder=placeholder, min_values=0, max_values=len(options), options=options)
 
         '''宣告一個 ViewClass 類別，繼承 discord.ui.View'''
-        def __init__(self, songData, timeout: float | None = 180):
+        def __init__(self, timeout: float | None = 180):
+        # def __init__(self, songData, timeout: float | None = 180):
             super().__init__(timeout = timeout)
-            self.songData = songData
+            # self.songData = songData
             '''[0]: song id, [1]: song title, [2]: artist,
             [3]:user id, [4]: url, [5]: thumbnail url'''
             # self.songData.append('') # songData[5], comment by url sharing
@@ -65,6 +66,18 @@ class Music(commands.Cog):
             except Exception as e:
                 err_msg = f'Failed to submit song.\n{e}'
                 await interaction.followup.send(err_msg, ephemeral=True)
+
+    class CompanySelMenu(discord.ui.View):
+        def __init__(self, companies, timeout: float | None = 180):
+            super().__init__(timeout = timeout)
+            options = [discord.SelectOption(label=name, value=id) for id, name in companies]
+            companyList = discord.ui.Select(placeholder='Choose a company.',
+                                            options=options)
+            companyList.callback = self.menu_callback
+            self.add_item(companyList)
+        async def menu_callback(self, interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral=True)
+            self.selectedCompany = interaction.values[0]
 
     class ModalClass(discord.ui.Modal, title = 'Share your recommendation.'):
         '''
@@ -125,10 +138,10 @@ class Music(commands.Cog):
             print(e)
             await ctx.followup.send(str(e))
 
-    @app_commands.command(name = 'share_song', description = 'Share a song!')
+    @app_commands.command(name = 'share_song_manual', description = 'Share a song! (Manual input)')
     @app_commands.autocomplete(artist=artist_autocomplete)
     @app_commands.describe(song_title='song title', artist='artist name, if you don\'t know the name, skip it or type "UNKNOWN"', url='song url')
-    async def share_song(self, interaction: discord.Interaction,
+    async def share_song_manual(self, interaction: discord.Interaction,
                          song_title: str, artist: str = '5529', url: str = ''):
         # TODO: Try to auto fetch song title and artist
         user = (interaction.user.id, interaction.user.name)
@@ -144,11 +157,10 @@ class Music(commands.Cog):
             # await interaction.response.send_message(err_msg, ephemeral=True)
             await interaction.followup.send(err_msg, ephemeral=True)
 
-    @app_commands.command(name = 'share_song_url', description = 'Share a song!')
+    @app_commands.command(name = 'share_song', description = 'Share a song by sending a link!')
     # @app_commands.autocomplete(link=song_arg_autocomplete)
     @app_commands.describe(link='song url')
-    async def share_song_url(self, interaction: discord.Interaction,
-                             link: str):
+    async def share_song(self, interaction: discord.Interaction, link: str):
         user = (interaction.user.id, interaction.user.name)
         try:
             await interaction.response.defer(ephemeral=True, thinking = True)
@@ -157,26 +169,40 @@ class Music(commands.Cog):
                 await self.add_artist(interaction)
             song_attr = tuple(db.submit_song(song_args[0], song_args[1], user))
             song_attr += (link, song_args[2])
-            view = self.TagSelMenu(song_attr)
+            view = self.TagSelMenu()
+            view.songData = song_attr
             await interaction.followup.send(view = view)
         except Exception as e:
             err_msg = f'Failed to submit song.\n{e}'
             await interaction.followup.send(err_msg, ephemeral=True)
 
-    async def add_artist(self, ctx: discord.Interaction):
-        await ctx.followup.send('It looks that the artist is not in our database.\nType the Artist Name to add one.')
+    async def add_artist(self, iact: discord.Interaction):
+        await iact.followup.send('It looks that the artist is not in our database.\nType the Artist Name to add one.')
         message = await self.bot.wait_for("message", timeout=60.0)
         artistName = message.content
 
-        await ctx.followup.send('Type the Artist Altnate Name, like his name in other languages.(type `-none` to skip)')
+        await iact.followup.send('Type the Artist Altnate Name, like his name in other languages.(type `-none` to skip)')
         message = await self.bot.wait_for("message", timeout=60.0)
         artistAltName = message.content if message.content != '-none' else None
 
-        await ctx.followup.send('Which record company this artist signed to?(type `-none` to skip)')
+        await iact.followup.send('Which record company this artist signed to?(type `-none` to skip)')
         message = await self.bot.wait_for("message", timeout=60.0)
         artistCompany = message.content if message.content != '-none' else None
+        companyResults = db.find_company(artistCompany) if companyResults is not None else []
+        if companyResults == []:
+            await self.add_company(iact, artistCompany)
+        else:
+            view = self.CompanySelMenu(companyResults)
+            await iact.followup.send(view=view)
+            
 
         db.insert_to_table((artistName, artistAltName, artistCompany), db.TABLES['artists'])
+
+    async def add_company(self, iact:discord.Interaction, companyName: str):
+        await iact.followup.send('It looks that the company is not in our database.\nWe are adding this company, give the company alternate name or type `-none` to skip this.')
+        message = await self.bot.wait_for("message", timeout=60.0)
+        companyAltName = message.content if message.content != '-none' else None
+        db.insert_to_table((companyName, companyAltName), db.TABLES['company'])
 
     def parse_song(self, songLink):
         '''Get song attributes from given song link.
@@ -190,6 +216,7 @@ class Music(commands.Cog):
         artist = ''
         thumbnail = ''
 
+        # TODO Implement YouTubeMusic
         if 'youtube' in songLink or 'youtu.be' in songLink:
             yt = YTMusic('oauth.json')
             song = self.get_thumbnail(songLink)[2]
@@ -198,6 +225,14 @@ class Music(commands.Cog):
             artist = search_results[0]['artists'][0]['name']
             thumbnail = search_results[0]['thumbnails'][-1]['url']
         return title, artist, thumbnail
+
+        # TODO Implement Spotify
+
+        # TODO Implement Tidal
+        # https://developer.tidal.com/documentation/api-sdk/api-sdk-quick-start
+        # https://developer.tidal.com/apiref
+
+        # TODO Implement Apple Music
 
     def get_thumbnail(self, url):
         # TODO: Add Apple Music and Tidal support
