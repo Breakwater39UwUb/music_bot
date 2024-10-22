@@ -280,8 +280,8 @@ def find_company(name: str|int,
             cursor.execute(query, (name,))
         elif type(name) == str:
             query = f"SELECT * FROM `{table}`\
-            WHERE Name LIKE %s 
-            OR Name_Alt LIKE %s
+            WHERE Name LIKE %s\
+            OR Name_Alt LIKE %s\
             LIMIT 25"
             cursor.execute(query, ('%' + name + '%', '%' + name + '%'))
     except OperationalError as e:
