@@ -188,3 +188,4 @@ logs
 .env.*
 !.env.example
 
+db_test.ipynb
