@@ -17,6 +17,7 @@ class BotManger(commands.Cog):
         event = __cogDir__ + 'event'
         bot_manager = __cogDir__ + 'bot_manager'
         music = __cogDir__ + 'music'
+        spend_share = __cogDir__ + 'spend_share'
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -29,8 +30,9 @@ class BotManger(commands.Cog):
     async def load(self, interaction: discord.Interaction,
                    module: CogModules):
         '''載入指令程式檔案'''
+        await interaction.response.defer(ephemeral=True, thinking = True)
         await self.bot.load_extension(f'{module.value}')
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f'{module.value} loaded.', ephemeral = True
         )
 
@@ -42,8 +44,9 @@ class BotManger(commands.Cog):
     async def unload(self, interaction: discord.Interaction,
                      module: CogModules):
         '''卸載指令檔案'''
+        await interaction.response.defer(ephemeral=True, thinking = True)
         await self.bot.unload_extension(f'{module.value}')
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f'{module.value} unloaded.', ephemeral = True
         )
 
@@ -57,6 +60,7 @@ class BotManger(commands.Cog):
         '''
         重新載入程式檔案
         '''
+        await interaction.response.defer(ephemeral=True, thinking = True)
         if module == self.CogModules.all:
             for item in self.CogModules:
                 if item == self.CogModules.all:
@@ -66,7 +70,7 @@ class BotManger(commands.Cog):
             await self.bot.reload_extension(f'{module.value}')
         slash = await self.bot.tree.sync()
         print(f"載入 {len(slash)} 個斜線指令")
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f'`{module.value}` reloaded.', ephemeral=True
         )
 
