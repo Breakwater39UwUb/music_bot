@@ -208,7 +208,7 @@ def check_exist_row(data: str,
 
 def find_artists(name: str|int,
                  table: str = TABLES['artists'],
-                 db = None):
+                 db = None) -> list[tuple[int, str]]:
     '''
     May return string that contains \\u3000
     '''
@@ -313,7 +313,7 @@ def find_company(name: str|int,
     return comany_names
 
 def submit_song(title: str,
-                artist_id: int,
+                artist_id: int|str,
                 recommender: tuple,
                 table: str = TABLES['songs']):
     '''Submit a new song
@@ -324,9 +324,13 @@ def submit_song(title: str,
 
     # db = init_db(user=DEFAULT_DB_USER, host='localhost')
     db = db_pool.connection()
-    if check_exist_row(recommender[0], db) == False:
+    if check_exist_row(recommender[0], 'UserID', TABLES['users'], db) == False:
         insert_to_table(recommender, TABLES['users'], db)
-    data = [uuid.uuid4(), title, int(artist_id), recommender[0]]
+    if type(artist_id) == str:
+        artist_id = find_artists(name=artist_id, db=db)[0][0]
+    else:
+        artist_id = int(artist_id)
+    data = [uuid.uuid4(), title, artist_id, recommender[0]]
     insert_to_table(tuple(data), table, db)
     data[2] = find_artists(name=data[2], db=db)[0][1]
     db.close()
