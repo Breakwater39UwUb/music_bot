@@ -5,7 +5,7 @@ from discord.ext import commands, tasks
 import dc_path
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix = "$", intents = intents)
+bot = commands.Bot(command_prefix = "!", intents = intents)
 
 # 一開始bot開機需載入全部程式檔案
 async def load_extensions():
