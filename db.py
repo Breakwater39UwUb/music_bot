@@ -2,6 +2,7 @@
 
 from dbutils.pooled_db import PooledDB
 import csv
+from decimal import Decimal
 import json
 import uuid
 from datetime import datetime
@@ -348,3 +349,24 @@ def add_song_tags(song_id: uuid.UUID,
     data = (song_id,) + tuple(tags)
     insert_to_table(data, table, db)
     db.close()
+
+def get_week_ranking(dbView: str = 'currentmonthrank'
+                     )-> list[tuple[str, Decimal, int]]:
+    '''Get the week ranking
+    
+    :return list[tuple]: [(UserID, TotalCurrentMonthAmount, Rank)]
+    
+        example return: ('breakwater39', Decimal('1298'), 1)
+    '''
+    ranking = []
+    db = db_pool.connection()
+    cursor = db.cursor()
+    cursor.execute(f"SELECT * FROM `{dbView}`")
+    db.commit()
+    results = cursor.fetchall()
+    for row in results:
+        ranking.append(row)
+    cursor.close()
+    db.close()
+
+    return ranking
