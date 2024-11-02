@@ -28,7 +28,8 @@ TABLES = {
     'songs': 'songs',
     'song_tags': 'tags',
     'tag_labels': 'tag_labels',
-    'users': 'users'
+    'users': 'users',
+    'spend_share': 'spend_share'
 }
 
 log = utils.Debug_Logger('database')
@@ -121,7 +122,8 @@ def insert_to_table(data: tuple,
         TABLES['songs']: f"INSERT INTO `{table}` (`ID`, `Title`, `Artist`, `Recommender`) VALUES(%s, %s, %s, %s)",
         TABLES['song_tags']: f"INSERT INTO `{table}` (`SongID`, `Tag`) VALUES(%s, %s)",
         TABLES['tag_labels']: f"INSERT INTO `{table}` (`ID`, `TagType`, `TagName`) VALUES(%s, %s, %s)",
-        TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)"
+        TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)",
+        TABLES['spend_share']: f"INSERT INTO `{table}` (`UserID`, `Amount`) VALUES(%s, %s)"
     }
 
     try:
