@@ -1,4 +1,5 @@
 import os
+import asyncio
 import enum
 from typing import Optional
 import discord
@@ -60,19 +61,30 @@ class BotManger(commands.Cog):
         '''
         重新載入程式檔案
         '''
-        await interaction.response.defer(ephemeral=True, thinking = True)
-        if module == self.CogModules.all:
-            for item in self.CogModules:
-                if item == self.CogModules.all:
-                    continue
-                await self.bot.reload_extension(item.value)
-        else:
-            await self.bot.reload_extension(f'{module.value}')
-        slash = await self.bot.tree.sync()
-        print(f"載入 {len(slash)} 個斜線指令")
-        await interaction.followup.send(
-            f'`{module.value}` reloaded.', ephemeral=True
-        )
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        try:
+            if module == self.CogModules.all:
+                for item in self.CogModules:
+                    if item == self.CogModules.all:
+                        continue
+                    # Reload each module with a 20-second timeout
+                    await asyncio.wait_for(self.bot.reload_extension(item.value), timeout=20)
+            else:
+                # Reload the specified module with a 20-second timeout
+                await asyncio.wait_for(self.bot.reload_extension(f'{module.value}'), timeout=20)
+
+            slash = await self.bot.tree.sync()
+            print(f"載入 {len(slash)} 個斜線指令")
+
+            await interaction.followup.send(
+                f'`{module.value}` reloaded.', ephemeral=True
+            )
+        except asyncio.TimeoutError:
+            await interaction.followup.send(
+                f'Error: Reloading `{module.value}` timed out after 20 seconds.',
+                ephemeral=True
+            )
 
 async def setup(bot: commands.Bot):
     '''Cog 載入 Bot'''
