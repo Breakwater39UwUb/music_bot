@@ -17,7 +17,7 @@ from pymysql.err import(
     InternalError,
     NotSupportedError)
 import utils
-from dc_path import DB_CONFIG
+from dc_config import DB_CONFIG
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
@@ -124,7 +124,7 @@ def insert_to_table(data: tuple,
         TABLES['song_tags']: f"INSERT INTO `{table}` (`SongID`, `Tag`) VALUES(%s, %s)",
         TABLES['tag_labels']: f"INSERT INTO `{table}` (`ID`, `TagType`, `TagName`) VALUES(%s, %s, %s)",
         TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)",
-        TABLES['spend_share']: f"INSERT INTO `{table}` (`UserID`, `Amount`) VALUES(%s, %s)"
+        TABLES['spend_share']: f"INSERT INTO `{table}` (`Time`, `UserID`, `Amount`) VALUES(%s, %s, %s)"
     }
 
     try:
