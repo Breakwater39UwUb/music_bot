@@ -138,7 +138,7 @@ def process_names(name: str, altName: str):
 class Debug_Logger:
     '''Custom logger class'''
 
-    def __init__(self, logger_name, log_level=logging.DEBUG, filename='debug.log'):
+    def __init__(self, logger_name, log_level=logging.DEBUG, filename='logs/debug.log'):
         '''
         logger_name: name of logger
         log_level: logging level
