@@ -2,9 +2,11 @@
 
 from dbutils.pooled_db import PooledDB
 import csv
+from decimal import Decimal
 import json
 import uuid
 from datetime import datetime
+from typing import Literal
 import pymysql
 from pymysql.constants.ER import DUP_ENTRY
 import pymysql.err as sqlError
@@ -16,7 +18,7 @@ from pymysql.err import(
     InternalError,
     NotSupportedError)
 import utils
-from dc_path import DB_CONFIG
+from dc_config import DB_CONFIG
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_DB = 'dc_bot'
@@ -28,7 +30,8 @@ TABLES = {
     'songs': 'songs',
     'song_tags': 'tags',
     'tag_labels': 'tag_labels',
-    'users': 'users'
+    'users': 'users',
+    'spend_share': 'spend_share'
 }
 
 log = utils.Debug_Logger('database')
@@ -121,7 +124,8 @@ def insert_to_table(data: tuple,
         TABLES['songs']: f"INSERT INTO `{table}` (`ID`, `Title`, `Artist`, `Recommender`) VALUES(%s, %s, %s, %s)",
         TABLES['song_tags']: f"INSERT INTO `{table}` (`SongID`, `Tag`) VALUES(%s, %s)",
         TABLES['tag_labels']: f"INSERT INTO `{table}` (`ID`, `TagType`, `TagName`) VALUES(%s, %s, %s)",
-        TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)"
+        TABLES['users']: f"INSERT INTO `{table}` (`UserID`, `Name`) VALUES(%s, %s)",
+        TABLES['spend_share']: f"INSERT INTO `{table}` (`Time`, `UserID`, `Amount`) VALUES(%s, %s, %s)"
     }
 
     try:
@@ -346,3 +350,30 @@ def add_song_tags(song_id: uuid.UUID,
     data = (song_id,) + tuple(tags)
     insert_to_table(data, table, db)
     db.close()
+
+def get_spend_ranking(dbView: Literal['v_spending_ranks', 'v_currentmonthrank'] = 'v_currentmonthrank'
+                      ) -> list[tuple[str, Decimal, int]]:
+    '''Get the week ranking
+
+    :param str dbView: The name of view. `v_currentmonthrank` as default or `v_spending_ranks`
+
+    :return list[tuple]: [(UserID, TotalCurrentMonthAmount, Rank)]
+    
+        example return: ('breakwater39', Decimal('1298'), 1)
+    '''
+
+    if dbView != 'v_currentmonthrank' and dbView != 'v_spending_ranks':
+        raise ValueError('dbView must be "v_currentmonthrank" or "v_spending_ranks".')
+
+    ranking = []
+    db = db_pool.connection()
+    cursor = db.cursor()
+    cursor.execute(f"SELECT * FROM `{dbView}`")
+    db.commit()
+    results = cursor.fetchall()
+    for row in results:
+        ranking.append(row)
+    cursor.close()
+    db.close()
+
+    return ranking
