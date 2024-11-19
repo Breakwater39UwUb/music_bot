@@ -6,6 +6,7 @@ from decimal import Decimal
 import json
 import uuid
 from datetime import datetime
+from typing import Literal
 import pymysql
 from pymysql.constants.ER import DUP_ENTRY
 import pymysql.err as sqlError
@@ -350,14 +351,20 @@ def add_song_tags(song_id: uuid.UUID,
     insert_to_table(data, table, db)
     db.close()
 
-def get_week_ranking(dbView: str = 'currentmonthrank'
-                     )-> list[tuple[str, Decimal, int]]:
+def get_spend_ranking(dbView: Literal['v_spending_ranks', 'v_currentmonthrank'] = 'v_currentmonthrank'
+                      ) -> list[tuple[str, Decimal, int]]:
     '''Get the week ranking
-    
+
+    :param str dbView: The name of view. `v_currentmonthrank` as default or `v_spending_ranks`
+
     :return list[tuple]: [(UserID, TotalCurrentMonthAmount, Rank)]
     
         example return: ('breakwater39', Decimal('1298'), 1)
     '''
+
+    if dbView != 'v_currentmonthrank' and dbView != 'v_spending_ranks':
+        raise ValueError('dbView must be "v_currentmonthrank" or "v_spending_ranks".')
+
     ranking = []
     db = db_pool.connection()
     cursor = db.cursor()
