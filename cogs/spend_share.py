@@ -30,7 +30,7 @@ class SpendShare(commands.Cog):
                 await message.channel.send(content=cost)
 
             if message.content == '$show_rank':
-                rankings = db.get_week_ranking()
+                rankings = db.get_spend_ranking('v_currentmonthrank')
                 channel_id = 1300332787508842599
                 channel = self.bot.get_channel(channel_id)
                 embed=discord.Embed(title='Week Ranking', description='Summary spending ranking of week in this month', color=0x39c5bb)
@@ -41,7 +41,7 @@ class SpendShare(commands.Cog):
                 await channel.send(embed = embed)
         except Exception as e:
             err_msg = f'Failed to submit spend share.\n```{e}```'
-            await message.channel.send(err_msg, ephemeral=True)
+            await message.channel.send(err_msg)
 
 class Task(commands.Cog):
     # 臺灣時區 UTC+8

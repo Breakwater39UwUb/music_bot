@@ -167,6 +167,7 @@ class Debug_Logger:
         self.logger.addHandler(console_handler)
 
     def _setup_file_handler(self, filename):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         file_handler = logging.FileHandler(filename, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)
         msg_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
