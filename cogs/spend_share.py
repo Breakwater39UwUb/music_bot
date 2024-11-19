@@ -1,4 +1,6 @@
 import re
+import json
+import asyncio
 import datetime
 import discord
 from discord.ext import commands, tasks
@@ -9,27 +11,8 @@ import db
 class SpendShare(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
-    # @app_commands.command(name = 'share_spend', description = 'Share your spendings!')
-    # @app_commands.describe(cost='spending costs', shareMsg='Comment of your spending.',attachment1 = 'Pictures of what you spended for.')
-    # async def share_spend(self, interaction: discord.Interaction, cost: str, shareMsg: str,
-    #                       attachment1: discord.Attachment = None, attachment2: discord.Attachment = None,
-    #                       attachment3: discord.Attachment = None, attachment4: discord.Attachment = None,
-    #                       attachment5: discord.Attachment = None, attachment6: discord.Attachment = None):
-    #     user = (interaction.user.id, interaction.user.name)
-    #     try:
-    #         await interaction.response.defer()
-
-    #         attachmentUrls = ''
-    #         for attachment in (attachment1, attachment2, attachment3, attachment4, attachment5, attachment6):
-    #             if attachment is not None:
-    #                 # attachments += f'[ ]({attachment.url})\n'
-    #                 attachmentUrls += f'{attachment.url}\n'
-
-    #         await interaction.followup.send(f'{cost}\n{attachmentUrls}')
-    #     except Exception as e:
-    #         err_msg = f'Failed to submit song.\n```{e}```'
-    #         await interaction.followup.send(err_msg, ephemeral=True)
+        with open('msg_emoji.json', 'r') as file:
+            self.emoji = json.load(file)[0]
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -45,10 +28,53 @@ class SpendShare(commands.Cog):
                     data = (user[1], cost)
                     db.insert_to_table(data=data, table=db.TABLES['spend_share'])
                 await message.channel.send(content=cost)
-                # print('Hello, world!')
+
+            if message.content == '$show_rank':
+                rankings = db.get_week_ranking()
+                channel_id = 1300332787508842599
+                channel = self.bot.get_channel(channel_id)
+                embed=discord.Embed(title='Week Ranking', description='Summary spending ranking of week in this month', color=0x39c5bb)
+                # embed.set_thumbnail(url=thumbnail)
+                for user in rankings:
+                    value = f'{self.emoji["money_with_wings"]} {user[1]} $NTD'
+                    embed.add_field(name=user[0], value=value, inline=False)
+                await channel.send(embed = embed)
         except Exception as e:
             err_msg = f'Failed to submit spend share.\n```{e}```'
             await message.channel.send(err_msg, ephemeral=True)
+
+class Task(commands.Cog):
+    # 臺灣時區 UTC+8
+    tz = datetime.timezone(datetime.timedelta(hours = 8))
+
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.week_ranking.start()
+
+    @tasks.loop(hours=3)
+    async def week_ranking(self):
+        '''Show week ranking of the month.'''
+        # 0 = monday, 1 = tuesday...
+        weekday = datetime.datetime.weekday(datetime.datetime.now())
+        if weekday == 6:
+            await asyncio.sleep(self.seconds_until(18, 0))
+            rankings = db.get_spend_ranking('v_currentmonthrank')
+            channel_id = 1300332787508842599
+            channel = self.bot.get_channel(channel_id)
+            embed=discord.Embed(title='Week Ranking', description='Summary spending ranking of this month', color=0x39c5bb)
+            # embed.set_thumbnail(url=thumbnail)
+            for user in rankings:
+                embed.add_field(name=user[2], value=f'{user[0]}: `{int(user[1])}`', inline=False)
+            await channel.send(embed = embed)
+
+    # Calculates the time in seconds until hh:mm is reached
+    def seconds_until(hours, minutes):
+        given_time = datetime.time(hours, minutes)
+        now = datetime.datetime.now()
+        future_exec = datetime.datetime.combine(now, given_time)
+        if (future_exec - now).days < 0: # If we are past the execution, it will take place tomorrow
+            future_exec = datetime.datetime.combine(now + datetime.timedelta(days=1), given_time) # days always >= 0
+        return (future_exec - now).total_seconds()
 
 def reduce_image_file_size(fnmIn, fnmOut, factor):
     '''
@@ -66,3 +92,4 @@ def reduce_image_file_size(fnmIn, fnmOut, factor):
 async def setup(bot: commands.Bot):
     '''Cog 載入 Bot'''
     await bot.add_cog(SpendShare(bot))
+    await bot.add_cog(Task(bot))
