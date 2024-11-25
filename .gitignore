@@ -189,3 +189,4 @@ logs
 !.env.example
 
 db_test.ipynb
+cache/
