@@ -1,3 +1,8 @@
+'''
+This COG file uses `aiohttp` to implement http communication.
+This web server can not restart along the COG reload method.
+'''
+
 import os
 import aiohttp
 from aiohttp import web
@@ -20,6 +25,18 @@ class Webserver(commands.Cog):
         async def check_status(request):
             status = self.bot.is_ready()
             return web.Response(text = str(status))
+        
+        @routes.get('/test')
+        async def test(request):
+            print(type(bot.guilds))
+            print(bot.guilds)
+            return web.Response(text = str(bot.guilds))
+        
+        @routes.get('/guilds')
+        async def guilds(request):
+            guilds = [guild for guild in self.bot.guilds]
+            guildProf = [guild.name for guild in guilds]
+            return web.Response(text = '\n'.join(guildProf))
 
         @routes.post('/dbl')
         async def dblwebhook(request):
