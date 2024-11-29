@@ -31,11 +31,30 @@ class BotManger(commands.Cog):
     async def load(self, interaction: discord.Interaction,
                    module: CogModules):
         '''載入指令程式檔案'''
-        await interaction.response.defer(ephemeral=True, thinking = True)
-        await self.bot.load_extension(f'{module.value}')
-        await interaction.followup.send(
-            f'{module.value} loaded.', ephemeral = True
-        )
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        try:
+            if module == self.CogModules.all:
+                for item in self.CogModules:
+                    if item == self.CogModules.all:
+                        continue
+                    # Reload each module with a 20-second timeout
+                    await asyncio.wait_for(self.bot.load_extension(item.value), timeout=20)
+            else:
+                # Reload the specified module with a 20-second timeout
+                await asyncio.wait_for(self.bot.load_extension(f'{module.value}'), timeout=20)
+
+            slash = await self.bot.tree.sync()
+            print(f"載入 {len(slash)} 個斜線指令")
+
+            await interaction.followup.send(
+                f'`{module.value}` loaded.', ephemeral=True
+            )
+        except asyncio.TimeoutError:
+            await interaction.followup.send(
+                f'Error: Loading `{module.value}` timed out after 20 seconds.',
+                ephemeral=True
+            )
 
     @app_commands.command(
         name='unload_module',
@@ -45,11 +64,30 @@ class BotManger(commands.Cog):
     async def unload(self, interaction: discord.Interaction,
                      module: CogModules):
         '''卸載指令檔案'''
-        await interaction.response.defer(ephemeral=True, thinking = True)
-        await self.bot.unload_extension(f'{module.value}')
-        await interaction.followup.send(
-            f'{module.value} unloaded.', ephemeral = True
-        )
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        try:
+            if module == self.CogModules.all:
+                for item in self.CogModules:
+                    if item == self.CogModules.all:
+                        continue
+                    # Reload each module with a 20-second timeout
+                    await asyncio.wait_for(self.bot.unload_extension(item.value), timeout=20)
+            else:
+                # Reload the specified module with a 20-second timeout
+                await asyncio.wait_for(self.bot.unload_extension(f'{module.value}'), timeout=20)
+
+            slash = await self.bot.tree.sync()
+            print(f"載入 {len(slash)} 個斜線指令")
+
+            await interaction.followup.send(
+                f'`{module.value}` unloaded.', ephemeral=True
+            )
+        except asyncio.TimeoutError:
+            await interaction.followup.send(
+                f'Error: Unloading `{module.value}` timed out after 20 seconds.',
+                ephemeral=True
+            )
 
     @app_commands.command(
         name='reload_module',
