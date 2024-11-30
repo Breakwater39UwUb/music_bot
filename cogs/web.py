@@ -4,12 +4,16 @@ This web server can not restart along the COG reload method.
 '''
 
 import os
+import sys
 import json
 import aiohttp
 from aiohttp import web
 from discord.ext import commands, tasks
 import discord
-from dataclass import CogRequest
+from dataclass import CogRequest, actionRequest
+import utils
+
+log = utils.My_Logger(__file__, 20, filename='command history')
 
 # using fastAPI
 from fastapi import FastAPI, Response
@@ -68,6 +72,13 @@ class Webserver(commands.Cog):
             result = json.dumps(result, indent=4)
             print(result)
             return Response(content = result, status_code = code, media_type='application/json')
+
+        @app.post('/bot_action')
+        async def bot_action(request: actionRequest):
+            if request.action == 'restart':
+                cog = self.bot.get_cog('Main')
+                # TODO: Handle no http response due to process restart.
+                cog.restart_bot()
 
     @tasks.loop()
     async def web_server(self):
