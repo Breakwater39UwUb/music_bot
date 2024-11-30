@@ -14,6 +14,10 @@ class Main(commands.Cog):
         await ctx.send("Hello, world!")
 
     @commands.command()
+    async def ping(self, ctx: commands.Context):
+        await ctx.send(f'Ping: {self.bot.latency*1000:.0f}ms')
+
+    @commands.command()
     async def DB(self, ctx: commands.Context, command, arg):
         if command == "show_all":
             result = db.fetch_all(arg)
