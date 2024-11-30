@@ -34,7 +34,7 @@ TABLES = {
     'spend_share': 'spend_share'
 }
 
-log = utils.Debug_Logger('database')
+log = utils.My_Logger(__file__, 20, filename='database')
 
 try:
     db_pool = PooledDB(
