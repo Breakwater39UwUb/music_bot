@@ -66,6 +66,7 @@ class My_Logger:
             DEBUG: 10
         filename: name of log file
         '''
+        logger_name = os.path.basename(logger_name)
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(log_level)
         # Check if the logger already has handlers
