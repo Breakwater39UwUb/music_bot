@@ -3,6 +3,10 @@ from discord.ext import commands
 import json
 import time
 from cogs.music import Music
+import utils
+
+bot_log = utils.My_Logger(__file__, 20, filename='bot')
+cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
 class Event(commands.Cog):
     def __init__(self, bot):
@@ -12,8 +16,8 @@ class Event(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         slash = await self.bot.tree.sync()
-        print(f'目前登入身份 --> {self.bot.user}')
-        print(f'載入 {len(slash)} 個斜線指令')
+        bot_log.log(f'目前登入身份 --> {self.bot.user}')
+        bot_log.log(f'載入 {len(slash)} 個斜線指令')
 
     # 關鍵字觸發
     @commands.Cog.listener()
@@ -26,12 +30,12 @@ class Event(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.context, err):
-        print(err)
+        bot_log.log(f'on_command_error: {err}')
         await ctx.send(err)
 
     @commands.Cog.listener()
     async def on_error(event, *args, **kwargs):
-        print(f'{args}\n{kwargs}')
+        bot_log.log(f'onerror: args: {args}, kwargs: {kwargs}')
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -44,7 +48,8 @@ class Event(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        channel = self.bot.get_channel(1288129756914778194)
+        # TODO: Only send to the channel which was set for this feature
+        channel = member.guild.text_channels[0]
         # role = guild.get_role(716186881007812628)
         embed = discord.Embed(title='成員加入', color=0x00fffb)
         embed.set_thumbnail(url=f'{member.avatar}')

@@ -13,7 +13,9 @@ import discord
 from dataclass import CogRequest, actionRequest
 import utils
 
-log = utils.My_Logger(__file__, 20, filename='command history')
+# TODO: log should record authorized users, now are "Unknown".
+bot_log = utils.My_Logger(__file__, 20, filename='bot')
+cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
 # using fastAPI
 from fastapi import FastAPI, Response
@@ -31,11 +33,18 @@ class Webserver(commands.Cog):
 
         @app.get('/check_status')
         async def check_status():
-            status = self.bot.is_ready()
-            return web.Response(text = str(status))
+            user = 'Unknown'
+            cmd_log.log(f'{check_status.__name__} called by {user}')
+            try:
+                status = self.bot.is_ready()
+                return Response(str(status))
+            except Exception as e:
+                return web.Response(text=f'Error: {e}', status=500)
 
         @app.get('/guilds')
         async def guilds():
+            user = 'Unknown'
+            cmd_log.log(f'{guilds.__name__} called by {user}')
             guilds = [guild for guild in self.bot.guilds]
             guildList = [
                 {'No.': i + 1, 'name': guild.name, 'id': guild.id}
@@ -52,7 +61,9 @@ class Webserver(commands.Cog):
             return 200
 
         @app.post('/cog')
-        async def cog_interface(request: CogRequest):
+        async def cog(request: CogRequest):
+            user = 'Unknown'
+            cmd_log.log(f'{cog.__name__} called by {user}')
             cogManager = self.bot.get_cog('BotManger')
 
             if request.method == 'load':
@@ -75,9 +86,11 @@ class Webserver(commands.Cog):
 
         @app.post('/bot_action')
         async def bot_action(request: actionRequest):
+            user = 'Unknown'
             if request.action == 'restart':
                 cog = self.bot.get_cog('Main')
                 # TODO: Handle no http response due to process restart.
+                cmd_log.log(f'restart called by {user}')
                 cog.restart_bot()
 
     @tasks.loop()

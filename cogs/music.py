@@ -12,6 +12,10 @@ from urllib import request
 from urllib.parse import parse_qs, urlparse, urlencode
 from ytmusicapi import YTMusic
 import db
+import utils
+
+bot_log = utils.My_Logger(__file__, 20, filename='bot')
+cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
 class Music(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -64,6 +68,7 @@ class Music(commands.Cog):
                 await interaction.followup.send(embed = embed)
             except Exception as e:
                 err_msg = f'Failed to submit song.\n{e}'
+                bot_log.log(err_msg, 40)
                 await interaction.followup.send(err_msg, ephemeral=True)
 
     class CompanySelMenu(discord.ui.View):
@@ -95,7 +100,7 @@ class Music(commands.Cog):
             #     f'Song title: {self.songTitle.value}, Artist: {self.songArtist}')
             # await interaction.response.autocomplete(SongTags)
         async def on_timeout(self):
-            print('Timeout on submission.')
+            bot_log.log('Timeout on submission.', 30)
 
     async def artist_autocomplete(
         self,
@@ -114,7 +119,7 @@ class Music(commands.Cog):
             else:
                 return []
         except sql_err.OperationalError as e:
-            print(e)
+            bot_log.log(e, 40)
             await ctx.followup.send(str(e))
 
     async def song_arg_autocomplete(
@@ -134,7 +139,7 @@ class Music(commands.Cog):
             else:
                 return []
         except sql_err.OperationalError as e:
-            print(e)
+            bot_log.log(e, 40)
             await ctx.followup.send(str(e))
 
     @app_commands.command(name = 'share_song_manual', description = 'Share a song! (Manual input)')
@@ -153,6 +158,7 @@ class Music(commands.Cog):
             # tags = await self.bot.wait_for('button_click', check=view.btn_callback)
         except Exception as e:
             err_msg = f'Failed to submit song.\n{e}'
+            bot_log.log(err_msg, 40)
             # await interaction.response.send_message(err_msg, ephemeral=True)
             await interaction.followup.send(err_msg, ephemeral=True)
 
@@ -174,6 +180,7 @@ class Music(commands.Cog):
             await interaction.followup.send(view = view)
         except Exception as e:
             err_msg = f'Failed to submit song.\n```{e}```'
+            bot_log.log(err_msg, 40)
             await interaction.followup.send(err_msg, ephemeral=True)
 
     async def add_artist(self, iact: discord.Interaction, artistName):

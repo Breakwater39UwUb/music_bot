@@ -9,7 +9,8 @@ import discord.ext
 import discord.ext.commands
 import utils
 
-log = utils.My_Logger(__file__, 20, filename='bot')
+bot_log = utils.My_Logger(__file__, 20, filename='bot')
+cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
 class BotManger(commands.Cog):
     class CogModules(enum.Enum):
@@ -36,6 +37,7 @@ class BotManger(commands.Cog):
     async def load(self, interaction: discord.Interaction,
                    module: CogModules):
         '''載入指令程式檔案'''
+        cmd_log.log(f'{self.load.callback.__name__} called by {interaction.user.display_name}')
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         try:
@@ -44,10 +46,14 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
+                    bot_log.log(f'Loading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.load_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish loading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Loading cog module: {module.value}')
                 await asyncio.wait_for(self.bot.load_extension(f'{module.value}'), timeout=20)
+                bot_log.log(f'Finish loading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             print(f"載入 {len(slash)} 個斜線指令")
@@ -56,6 +62,7 @@ class BotManger(commands.Cog):
                 f'`{module.value}` loaded.', ephemeral=True
             )
         except asyncio.TimeoutError:
+            bot_log.log(f'Loading `{module.value}` timed out.', 40)
             await interaction.followup.send(
                 f'Error: Loading `{module.value}` timed out.',
                 ephemeral=True
@@ -72,30 +79,35 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
-                    await asyncio.wait_for(self.bot.load_extension(item), timeout=20)
+                    bot_log.log(f'Loading cog module: {item.value}')
+                    await asyncio.wait_for(self.bot.load_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish loading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Loading cog module: {module.value}')
                 await asyncio.wait_for(
                     self.bot.load_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
+                bot_log.log(f'Finish loading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
-            log.log(f'`{module}` loaded.')
-            log.log(f"載入 {len(slash)} 個斜線指令")
+            bot_log.log(f'`{module}` loaded.')
+            bot_log.log(f"載入 {len(slash)} 個斜線指令")
             return result
         except asyncio.TimeoutError as te:
-            log.log(f'Loading `{module}` timed out.',40)
+            bot_log.log(f'Loading `{module}` timed out.',40)
             result['error'] = te.__class__.__name__
             return result
         except discord.ext.commands.ExtensionNotFound as extnf:
-            log.log(f'Module `{module}` not found.',40)
+            bot_log.log(f'Module `{module}` not found.',40)
             result['error'] = extnf.__class__.__name__
             return result
         except Exception as e:
-            log.log(f'Loading `{module}`, {e}',40)
+            bot_log.log(f'Loading `{module}`, {e}',40)
             return result
         except:
+            bot_log.log('Other exception occurred.')
             raise
 
     @app_commands.command(
@@ -106,6 +118,7 @@ class BotManger(commands.Cog):
     async def unload(self, interaction: discord.Interaction,
                      module: CogModules):
         '''卸載指令檔案'''
+        cmd_log.log(f'{self.unload.callback.__name__} called by {interaction.user.display_name}')
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         try:
@@ -114,10 +127,14 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
+                    bot_log.log(f'Unoading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.unload_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish unloading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Unoading cog module: {module.value}')
                 await asyncio.wait_for(self.bot.unload_extension(f'{module.value}'), timeout=20)
+                bot_log.log(f'Finish unloading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             print(f"載入 {len(slash)} 個斜線指令")
@@ -126,6 +143,7 @@ class BotManger(commands.Cog):
                 f'`{module.value}` unloaded.', ephemeral=True
             )
         except asyncio.TimeoutError:
+            bot_log.log(f'Unloading `{module.value}` timed out.',40)
             await interaction.followup.send(
                 f'Error: Unloading `{module.value}` timed out.',
                 ephemeral=True
@@ -142,28 +160,32 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
-                    await asyncio.wait_for(self.bot.unload_extension(item), timeout=20)
+                    bot_log.log(f'Unoading cog module: {item.value}')
+                    await asyncio.wait_for(self.bot.unload_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish unloading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Unoading cog module: {module.value}')
                 await asyncio.wait_for(
                     self.bot.unload_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
+                bot_log.log(f'Finish unloading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
-            log.log(f'`{module}` loaded.')
-            log.log(f"載入 {len(slash)} 個斜線指令")
+            bot_log.log(f'`{module}` loaded.')
+            bot_log.log(f"載入 {len(slash)} 個斜線指令")
             return result
         except asyncio.TimeoutError as te:
-            log.log(f'Unloading `{module}` timed out.',40)
+            bot_log.log(f'Unloading `{module}` timed out.',40)
             result['error'] = te.__class__.__name__
             return result
         except discord.ext.commands.ExtensionNotFound as extnf:
-            log.log(f'Module `{module}` not found.',40)
+            bot_log.log(f'Module `{module}` not found.',40)
             result['error'] = extnf.__class__.__name__
             return result
         except Exception as e:
-            log.log(f'Unloading `{module}`, {e}', 40)
+            bot_log.log(f'Unloading `{module}`, {e}', 40)
             return result
 
     @app_commands.command(
@@ -176,6 +198,7 @@ class BotManger(commands.Cog):
         '''
         重新載入程式檔案
         '''
+        cmd_log.log(f'{self.reload.callback.__name__} called by {interaction.user.display_name}')
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         try:
@@ -184,10 +207,14 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
+                    bot_log.log(f'Rnoading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.reload_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish reloading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Rnoading cog module: {module.value}')
                 await asyncio.wait_for(self.bot.reload_extension(f'{module.value}'), timeout=20)
+                bot_log.log(f'Finish reloading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             print(f"載入 {len(slash)} 個斜線指令")
@@ -196,6 +223,7 @@ class BotManger(commands.Cog):
                 f'`{module.value}` reloaded.', ephemeral=True
             )
         except asyncio.TimeoutError:
+            bot_log.log(f'Reloading `{module.value}` timed out.',40)
             await interaction.followup.send(
                 f'Error: Reloading `{module.value}` timed out.',
                 ephemeral=True
@@ -212,37 +240,32 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
-                    await asyncio.wait_for(self.bot.reload_extension(item), timeout=20)
+                    bot_log.log(f'Rnoading cog module: {item.value}')
+                    await asyncio.wait_for(self.bot.reload_extension(item.value), timeout=20)
+                    bot_log.log(f'Finish reloading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
+                bot_log.log(f'Rnoading cog module: {module.value}')
                 await asyncio.wait_for(
                     self.bot.reload_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
+                bot_log.log(f'Finish reloading cog module: {module.value}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
-            log.log(f'`{module}` reloaded.')
-            log.log(f"載入 {len(slash)} 個斜線指令")
+            bot_log.log(f'`{module}` reloaded.')
+            bot_log.log(f"載入 {len(slash)} 個斜線指令")
             return result
         except asyncio.TimeoutError as te:
-            log.log(
-                f'Reloading `{module}` timed out.',
-                40
-            )
+            bot_log.log(f'Reloading `{module}` timed out.', 40)
             result['error'] = te.__class__.__name__
             return result
         except discord.ext.commands.ExtensionNotFound as extnf:
-            log.log(
-                f'Module `{module}` not found.',
-                40
-            )
+            bot_log.log(f'Module `{module}` not found.', 40)
             result['error'] = extnf.__class__.__name__
             return result
         except Exception as e:
-            log.log(
-                f'Reloading `{module}`, {e}',
-                40
-            )
+            bot_log.log(f'Reloading `{module}`, {e}', 40)
             return result
 
 async def setup(bot: commands.Bot):

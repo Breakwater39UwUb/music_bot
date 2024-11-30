@@ -6,7 +6,7 @@ from discord import app_commands
 import db
 import utils
 
-log = utils.My_Logger(__file__, 20, filename='bot')
+bot_log = utils.My_Logger(__file__, 20, filename='bot')
 cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
 # 定義名為 Main 的 Cog
@@ -26,7 +26,7 @@ class Main(commands.Cog):
         await ctx.send(f'Ping: {self.bot.latency*1000:.0f}ms')
 
     def restart_bot(self): 
-        log.log('Restarting bot.')
+        bot_log.log('Restarting bot.')
         os.execv(sys.executable, ['python'] + sys.argv)
 
     @commands.command()
