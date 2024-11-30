@@ -33,6 +33,7 @@ class Webserver(commands.Cog):
 
         @app.get('/check_status')
         async def check_status():
+            '''A get method to check whether the bot is dead or not.'''
             user = 'Unknown'
             cmd_log.log(f'{check_status.__name__} called by {user}')
             try:
@@ -43,6 +44,7 @@ class Webserver(commands.Cog):
 
         @app.get('/guilds')
         async def guilds():
+            '''A get method for guilds that bot are invited in.'''
             user = 'Unknown'
             cmd_log.log(f'{guilds.__name__} called by {user}')
             guilds = [guild for guild in self.bot.guilds]
@@ -62,6 +64,7 @@ class Webserver(commands.Cog):
 
         @app.post('/cog')
         async def cog(request: CogRequest):
+            '''A post method for cog management'''
             user = 'Unknown'
             cmd_log.log(f'{cog.__name__} called by {user}')
             cogManager = self.bot.get_cog('BotManger')
@@ -81,17 +84,22 @@ class Webserver(commands.Cog):
                 code = 200
 
             result = json.dumps(result, indent=4)
-            print(result)
             return Response(content = result, status_code = code, media_type='application/json')
 
         @app.post('/bot_action')
         async def bot_action(request: actionRequest):
+            '''A post action for bot action, ex: restart, logout'''
             user = 'Unknown'
             if request.action == 'restart':
                 cog = self.bot.get_cog('Main')
                 # TODO: Handle no http response due to process restart.
                 cmd_log.log(f'restart called by {user}')
                 cog.restart_bot()
+
+        # TODO: implement guild profile creation
+        @app.post('/gen_guild_profile')
+        async def gen_guild_profile(request):
+            pass
 
     @tasks.loop()
     async def web_server(self):
