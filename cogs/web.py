@@ -105,43 +105,32 @@ class Webserver(commands.Cog):
         # TODO: implement guild profile creation
         @app.post('/gen_guild_profile')
         async def gen_guild_profile(request: GuildProfile):
-            '''A post method for creating a guild profile as follows:
+            '''A post method for creating a guild profile.
+            Featured channel could be empty class.
+
+            Before calling this api, user should choose a guild from guild list using `/get_guilds`
+            json structure as follows:
             
             ```json
             {
-                "name": "server alpha",
-                "id": "65535",
+                "name": string,
+                "id": int,
                 "featured channel": {
                     "spend_share": {
-                        "channel name": "Sorry my wallet",
-                        "channel_id": "1234123"
+                        "channel name": string,
+                        "channel_id": int
                     },
-                    "music_share": {
-                        "channel name": "Music blog",
-                        "channel_id": "1234123"
-                    },
-                    "bot_command": {
-                        "channel name": "Bot CMD",
-                        "channel_id": "1234123"
-                    },
-                    "welcome": {
-                        "channel name": "Hall of Welcome",
-                        "channel_id": "1234123"
-                    }
+                    "music_share": {}
                 }
             }
             ```
             '''
             user = 'Unknown'
             cmd_log.log(f'gen_guild_profile called by {user}')
+            confManager = self.bot.get_cog('GuildConfigManager')
             try:
-                filename = f'./guild_profiles/{request.id}.json'
-                os.makedirs(os.path.dirname(filename), exist_ok=True)
-                # profile = request.model_dump_json(indent=4)
-                profile = request.model_dump(mode='json', exclude='action')
-                # TODO: Avoid overwriting profile
-                with open(filename, 'w') as fp:
-                    json.dump(profile, fp, indent=4, ensure_ascii=False)
+                result = await confManager.write_profile_to_file(request)
+                return Response(result, 200)
             except Exception as e:
                 bot_log.log(f'Error generating profile: {e}', 40)
                 return Response(f'Error: {e}', status_code=500)
