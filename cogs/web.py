@@ -10,10 +10,16 @@ import aiohttp
 from aiohttp import web
 from discord.ext import commands, tasks
 import discord
-from dataclass import CogRequest, actionRequest
+from dataclass import (
+    CogRequest,
+    actionRequest,
+    GuildProfile,
+    TC
+)
 import utils
 
 # TODO: log should record authorized users, now are "Unknown".
+# user may record in html header
 bot_log = utils.My_Logger(__file__, 20, filename='bot')
 cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 
@@ -40,7 +46,7 @@ class Webserver(commands.Cog):
                 status = self.bot.is_ready()
                 return Response(str(status))
             except Exception as e:
-                return web.Response(text=f'Error: {e}', status=500)
+                return Response(f'Error: {e}', status_code=500)
 
         @app.get('/guilds')
         async def guilds():
@@ -95,11 +101,51 @@ class Webserver(commands.Cog):
                 # TODO: Handle no http response due to process restart.
                 cmd_log.log(f'restart called by {user}')
                 cog.restart_bot()
+            # TODO: implement other actions
 
         # TODO: implement guild profile creation
         @app.post('/gen_guild_profile')
-        async def gen_guild_profile(request):
-            pass
+        async def gen_guild_profile(request: GuildProfile):
+            '''A post method for creating a guild profile as follows:
+            
+            ```json
+            {
+                "name": "server alpha",
+                "id": "65535",
+                "featured channel": {
+                    "spend_share": {
+                        "channel name": "Sorry my wallet",
+                        "channel_id": "1234123"
+                    },
+                    "music_share": {
+                        "channel name": "Music blog",
+                        "channel_id": "1234123"
+                    },
+                    "bot_command": {
+                        "channel name": "Bot CMD",
+                        "channel_id": "1234123"
+                    },
+                    "welcome": {
+                        "channel name": "Hall of Welcome",
+                        "channel_id": "1234123"
+                    }
+                }
+            }
+            ```
+            '''
+            user = 'Unknown'
+            cmd_log.log(f'gen_guild_profile called by {user}')
+            try:
+                filename = f'./guild_profiles/{request.name}.json'
+                os.makedirs(os.path.dirname(filename), exist_ok=True)
+                # TODO: Avoid overwriting profile
+                with open(filename, 'w') as fp:
+                    # TODO: Make output file is beautify json
+                    json.dump(request.model_dump_json(indent=4), fp, ensure_ascii=False)
+            except Exception as e:
+                bot_log.log(f'Error generating profile: {e}', 40)
+                return Response(f'Error: {e}', status_code=500)
+
 
     @tasks.loop()
     async def web_server(self):
