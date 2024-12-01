@@ -13,8 +13,7 @@ import discord
 from dataclass import (
     CogRequest,
     actionRequest,
-    GuildProfile,
-    TC
+    GuildProfile
 )
 import utils
 
@@ -136,16 +135,32 @@ class Webserver(commands.Cog):
             user = 'Unknown'
             cmd_log.log(f'gen_guild_profile called by {user}')
             try:
-                filename = f'./guild_profiles/{request.name}.json'
+                filename = f'./guild_profiles/{request.id}.json'
                 os.makedirs(os.path.dirname(filename), exist_ok=True)
+                # profile = request.model_dump_json(indent=4)
+                profile = request.model_dump(mode='json', exclude='action')
                 # TODO: Avoid overwriting profile
                 with open(filename, 'w') as fp:
-                    # TODO: Make output file is beautify json
-                    json.dump(request.model_dump_json(indent=4), fp, ensure_ascii=False)
+                    json.dump(profile, fp, indent=4, ensure_ascii=False)
             except Exception as e:
                 bot_log.log(f'Error generating profile: {e}', 40)
                 return Response(f'Error: {e}', status_code=500)
 
+        # TODO: Figure out should use individual api for profile setting.
+        @app.post('/guild_profile_settings')
+        async def guild_profile_settings(request):
+            # TODO: implement guild_profile_settings
+            try:
+                return Response(request.action)
+            except:
+                # bot_log.log('Error parsing TC', 40)
+                return Response('Error parsing TC', status_code=500)
+
+    # TODO: implement change profile from json
+    # async def set_guild_profile(self, filename, option, changes):
+    #     '''A function that set the guild profile json file.'''
+    #     with open(filename, 'a'):
+    #         pass
 
     @tasks.loop()
     async def web_server(self):
