@@ -23,6 +23,7 @@ class GuildConfigManager(commands.Cog):
         self.bot = bot
         self.profilePath = './guild_profiles'
 
+    # TODO: Add a function for other commands can see corresponding channels to send.
 
     @app_commands.command(
         name='gen_guild_profile',
