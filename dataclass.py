@@ -1,4 +1,5 @@
 from typing import Literal, ClassVar
+import enum
 from pydantic import (
     BaseModel,
     Field,
@@ -57,6 +58,29 @@ class BotFeatures(BaseModel):
     #                   'bot_command': bot_command,
     #                   'welcome': welcome}
     # feature_list: list[str] = Field(description='List of bot features.')
+
+class Features(enum.Enum):
+    '''Enumerate for different Bot feature.
+    If new feature is added, need to add new attribute manually.
+    '''
+    spend_share = 'spend_share'
+    music = 'music'
+    bot_command = 'bot_command'
+    welcome = 'welcome'
+
+class CogModules(enum.Enum):
+    """
+    Enumerate for different Cog modules.
+    If new module is added, need to add new attribute manually.
+    """
+    # TODO: Fix moved data class in cog_manager.py
+    __cogDir__ = 'cogs.'
+    all = __cogDir__ + '*'
+    main = __cogDir__ + 'main'
+    event = __cogDir__ + 'event'
+    bot_manager = __cogDir__ + 'bot_manager'
+    music = __cogDir__ + 'music'
+    spend_share = __cogDir__ + 'spend_share'
 
 class item(BaseModel):
     name: str
