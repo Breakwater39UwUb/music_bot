@@ -18,6 +18,7 @@ class BotManger(commands.Cog):
         Enumerate for different Cog modules.
         If new module is added, need to add new attribute manually.
         """
+        # TODO: Move this data structure into dataclass.py
         __cogDir__ = 'cogs.'
         all = __cogDir__ + '*'
         main = __cogDir__ + 'main'
