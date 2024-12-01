@@ -48,11 +48,11 @@ class Webserver(commands.Cog):
             except Exception as e:
                 return Response(f'Error: {e}', status_code=500)
 
-        @app.get('/guilds')
-        async def guilds():
+        @app.get('/get_guilds')
+        async def get_guilds():
             '''A get method for guilds that bot are invited in.'''
             user = 'Unknown'
-            cmd_log.log(f'{guilds.__name__} called by {user}')
+            cmd_log.log(f'{get_guilds.__name__} called by {user}')
             guilds = [guild for guild in self.bot.guilds]
             guildList = [
                 {'No.': i + 1, 'name': guild.name, 'id': guild.id}
