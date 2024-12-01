@@ -24,8 +24,8 @@ class actionRequest(BaseModel):
         return act
 
 class ChannelProfile(BaseModel):
-    channel_name: str
-    channel_id: str
+    name: str
+    id: int
 
 class FeaturedChannels(BaseModel):
     spend_share: ChannelProfile
@@ -35,9 +35,9 @@ class FeaturedChannels(BaseModel):
 
 class GuildProfile(BaseModel):
     name: str
-    id: str
-    featured_channel: FeaturedChannels
-    action: str
+    id: int
+    featured_channel: FeaturedChannels | dict
+    action: str = Field(default='none', description='action for guild profile modification')
 
     @field_validator('action')
     @classmethod
