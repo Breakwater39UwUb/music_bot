@@ -77,11 +77,11 @@ class Task(commands.Cog):
                     embed.add_field(name=user[2], value=f'{user[0]}: `{int(user[1])}`', inline=False)
                 await channel.send(embed = embed)
         except Exception as e:
-            err_msg = f'Failed to calculate week ranking.'
+            err_msg = f'Failed to calculate week ranking.\n{e}'
             bot_log.log(err_msg, 40)
             await channel.send(err_msg)
 
-    def seconds_until(hours, minutes):
+    def seconds_until(self, hours, minutes):
         '''Calculates the time in seconds until hh:mm is reached'''
         given_time = datetime.time(hours, minutes)
         now = datetime.datetime.now()
