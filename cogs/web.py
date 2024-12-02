@@ -129,7 +129,7 @@ class Webserver(commands.Cog):
             cmd_log.log(f'gen_guild_profile called by {user}')
             confManager = self.bot.get_cog('GuildConfigManager')
             try:
-                result = await confManager.write_profile_to_file(request)
+                result = await confManager.save_guild_profile(request)
                 return Response(result, 200)
             except Exception as e:
                 bot_log.log(f'Error generating profile: {e}', 40)
