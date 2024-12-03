@@ -145,6 +145,20 @@ class Webserver(commands.Cog):
                 # bot_log.log('Error parsing TC', 40)
                 return Response('Error parsing TC', status_code=500)
 
+        # TODO: Make parameter both accept json and null(no post data)
+        @app.post('/test/load_guild_profile')
+        async def load_guild_profile(request: GuildProfile | None):
+            '''A test method for loading guild profile from json file.'''
+            user = 'Unknown'
+            cmd_log.log(f'load_guild_profile called by {user}')
+            confManager = self.bot.get_cog('GuildConfigManager')
+            try:
+                result = await confManager.load_guild_profile(request.id)
+                return Response(result, 200)
+            except Exception as e:
+                bot_log.log(f'Error loading profile: {e}', 40)
+                return Response(f'Error: {e}', status_code=500)
+
     # TODO: implement change profile from json
     # async def set_guild_profile(self, filename, option, changes):
     #     '''A function that set the guild profile json file.'''
