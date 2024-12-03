@@ -23,7 +23,14 @@ class GuildConfigManager(commands.Cog):
         self.bot = bot
         self.profilePath = './guild_profiles'
 
+    # def loaded_guilds(self):
+    #     return [guildName for guild in self.guildProfileList]
+
     # TODO: Add a function for other commands can see corresponding channels to send.
+    async def get_featured_channel(guild_id: int, feature_name: Features):
+        '''Returns dedicated channel for specified feature in guild.'''
+        # profiles = os.
+        pass
 
     @app_commands.command(
         name='gen_guild_profile',
@@ -36,7 +43,7 @@ class GuildConfigManager(commands.Cog):
             profile = GuildProfile(name=iact.guild.name,
                                    id=iact.guild.id,
                                    featured_channel={})
-            result = await self.write_profile_to_file(profile)
+            result = await self.save_guild_profile(profile)
             completion_msg = f'Profile created, full content as follow:\n```json\n{result}```'
             await iact.followup.send(completion_msg, ephemeral=True)
         except Exception as e:
@@ -44,7 +51,53 @@ class GuildConfigManager(commands.Cog):
             bot_log.log(err_msg, 40)
             await iact.followup.send(err_msg, ephemeral=True)
 
-    async def write_profile_to_file(self, profile: GuildProfile):
+    async def get_guild_profiles(self, guild_id: int | None = None) -> str | list[str]:
+        '''Get guild profile with guild id.
+        
+        :param int guild_id: If no guild_id is provided, returns all guild profiles names.
+        '''
+
+        # TODO: Test with this method
+        if guild_id is None:
+            guild_profile_names = os.listdir(self.profilePath)
+            return guild_profile_names
+
+        if guild_id is not None:
+            file_path = f'{self.profilePath}/{guild_id}.json'
+            if os.path.exists(file_path):
+                    return file_path
+            else:
+                bot_log.log(f'No profile found for guild id: {guild_id}', 30)
+                return None
+
+    async def load_guild_profile(self, guild_id: int | None = None):
+        '''Load guild profile as class variable.
+        
+        :param GuildProfile profile: If no profile is specified, then load all profiles.
+
+        :return guildProfileList: List of guild profile or single given profile of guild id
+        '''
+
+        # TODO: Test with this method
+        self.guildProfileList = {}
+        if guild_id is None:
+            fileNames = self.get_guild_profiles()
+            for fileName in fileNames:
+                async with aiofiles.open(fileName, 'r') as file:
+                    profile_json = await file.read()
+                    profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
+                    self.guildProfileList[profile.id] = profile
+            return self.guildProfileList
+
+        if guild_id is not None:
+            async with aiofiles.open(f'{self.profilePath}/{guild_id}.json', 'r') as file:
+                profile_json = await file.read()
+                profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
+                self.guildProfileList[profile.id] = profile
+                return self.guildProfileList[profile.id]
+        return None
+
+    async def save_guild_profile(self, profile: GuildProfile):
         try:
             file_path = f'{self.profilePath}/{profile.id}.json'
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
