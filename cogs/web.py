@@ -147,13 +147,17 @@ class Webserver(commands.Cog):
 
         # TODO: Make parameter both accept json and null(no post data)
         @app.post('/test/load_guild_profile')
-        async def load_guild_profile(request: GuildProfile | None):
+        async def load_guild_profile(request: GuildProfile = None):
             '''A test method for loading guild profile from json file.'''
             user = 'Unknown'
             cmd_log.log(f'load_guild_profile called by {user}')
             confManager = self.bot.get_cog('GuildConfigManager')
             try:
-                result = await confManager.load_guild_profile(request.id)
+                if request is not None:
+                    result = await confManager.load_guild_profile(request.id)
+                    return Response(result, 200)
+                result = await confManager.load_guild_profile()
+                result = await self.dataclass_to_json(result)
                 return Response(result, 200)
             except Exception as e:
                 bot_log.log(f'Error loading profile: {e}', 40)
@@ -164,6 +168,12 @@ class Webserver(commands.Cog):
     #     '''A function that set the guild profile json file.'''
     #     with open(filename, 'a'):
     #         pass
+
+    async def dataclass_to_json(self, obj: dict[GuildProfile] | GuildProfile):
+        if type(obj) == dict:
+            converted_dict = [prof.model_dump(mode='python', exclude='action') for prof in obj.values()]
+            json_str = json.dumps(converted_dict, ensure_ascii=False, indent=4)
+            return json_str
 
     @tasks.loop()
     async def web_server(self):
