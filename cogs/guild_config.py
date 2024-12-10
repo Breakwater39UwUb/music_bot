@@ -21,7 +21,8 @@ cmd_log = utils.My_Logger(__file__, 20, filename='command history')
 class GuildConfigManager(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.profilePath = './guild_profiles'
+        self.PROFILEPATH = './guild_profiles'
+        self.guildProfileList = {}
 
     # def loaded_guilds(self):
     #     return [guildName for guild in self.guildProfileList]
@@ -59,18 +60,20 @@ class GuildConfigManager(commands.Cog):
 
         # TODO: Test with this method
         if guild_id is None:
-            guild_profile_names = os.listdir(self.profilePath)
+            files = os.listdir(self.PROFILEPATH)
+            guild_profile_names = [os.path.sep.join([self.PROFILEPATH, file]) for file in files]
+            # guild_profile_names = f'{self.PROFILEPATH}{os.path.sep}{file}'
             return guild_profile_names
 
         if guild_id is not None:
-            file_path = f'{self.profilePath}/{guild_id}.json'
+            file_path = f'{self.PROFILEPATH}/{guild_id}.json'
             if os.path.exists(file_path):
                     return file_path
             else:
                 bot_log.log(f'No profile found for guild id: {guild_id}', 30)
                 return None
 
-    async def load_guild_profile(self, guild_id: int | None = None):
+    async def load_guild_profile(self, guild_id: int = None):
         '''Load guild profile as class variable.
         
         :param GuildProfile profile: If no profile is specified, then load all profiles.
@@ -79,18 +82,22 @@ class GuildConfigManager(commands.Cog):
         '''
 
         # TODO: Test with this method
-        self.guildProfileList = {}
         if guild_id is None:
-            fileNames = self.get_guild_profiles()
+            fileNames = await self.get_guild_profiles()
             for fileName in fileNames:
-                async with aiofiles.open(fileName, 'r') as file:
-                    profile_json = await file.read()
-                    profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
-                    self.guildProfileList[profile.id] = profile
+                try:
+                    async with aiofiles.open(fileName, 'r') as file:
+                        profile_json = await file.read()
+                        # profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
+                        profile_json = json.loads(profile_json)
+                        profile = GuildProfile.model_validate(profile_json)
+                        self.guildProfileList[profile.id] = profile
+                except Exception as e:
+                    bot_log.log(f'Error loading profile from file: {fileName} - {e}', 40)
             return self.guildProfileList
 
         if guild_id is not None:
-            async with aiofiles.open(f'{self.profilePath}/{guild_id}.json', 'r') as file:
+            async with aiofiles.open(f'{self.PROFILEPATH}/{guild_id}.json', 'r') as file:
                 profile_json = await file.read()
                 profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
                 self.guildProfileList[profile.id] = profile
@@ -99,7 +106,7 @@ class GuildConfigManager(commands.Cog):
 
     async def save_guild_profile(self, profile: GuildProfile):
         try:
-            file_path = f'{self.profilePath}/{profile.id}.json'
+            file_path = f'{self.PROFILEPATH}/{profile.id}.json'
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             # TODO: Avoid overwriting profile and make sure profile only creates once per guilds.
             async with aiofiles.open(file_path, 'w') as file:
@@ -140,7 +147,7 @@ class GuildConfigManager(commands.Cog):
             raise
 
     async def set_channel(self, guild_id: str, feature: Features, channel: ChannelProfile):
-        file_path = f'{self.profilePath}/{guild_id}.json'
+        file_path = f'{self.PROFILEPATH}/{guild_id}.json'
         async with aiofiles.open(file_path, 'r') as file:
             data = await file.read()
             data = json.loads(data)
