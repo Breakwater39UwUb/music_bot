@@ -5,7 +5,6 @@ import datetime
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-from PIL import Image
 import db
 import utils
 
@@ -89,19 +88,6 @@ class Task(commands.Cog):
         if (future_exec - now).days < 0: # If we are past the execution, it will take place tomorrow
             future_exec = datetime.datetime.combine(now + datetime.timedelta(days=1), given_time) # days always >= 0
         return (future_exec - now).total_seconds()
-
-def reduce_image_file_size(fnmIn, fnmOut, factor):
-    '''
-    Reduce image file size.
-    '''
-    try:
-        img = Image.open(fnmIn)
-        img = img.reduce(factor)
-        img.save(fnmOut)    
-    except Image.DecompressionBombError as ex1:
-        print(ex1)
-    except Exception as ex2:
-        raise ex2
 
 async def setup(bot: commands.Bot):
     '''Cog 載入 Bot'''
