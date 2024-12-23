@@ -7,7 +7,6 @@ from discord.ext import commands
 from discord.app_commands import Choice
 from discord import app_commands
 import pymysql.err as sql_err
-from PIL import Image
 from urllib import request
 from urllib.parse import parse_qs, urlparse, urlencode
 from ytmusicapi import YTMusic
