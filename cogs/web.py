@@ -146,17 +146,22 @@ class Webserver(commands.Cog):
                 return Response('Error parsing TC', status_code=500)
 
         # TODO: Make parameter both accept json and null(no post data)
-        @app.post('/test/load_guild_profile')
-        async def load_guild_profile(request: GuildProfile = None):
-            '''A test method for loading guild profile from json file.'''
+        @app.post('/load_guild_profile')
+        async def load_guild_profile(guild_id: int = None):
+            '''A method for loading guild profile from json file.
+            
+            If guild_id is given, it will be load/reload the profile,
+            otherwise it will load all saved guild profiles.
+            
+            :param int guild_id: Discord guild id.'''
             user = 'Unknown'
             cmd_log.log(f'load_guild_profile called by {user}')
             confManager = self.bot.get_cog('GuildConfigManager')
             try:
-                if request is not None:
-                    result = await confManager.load_guild_profile(request.id)
-                    return Response(result, 200)
-                result = await confManager.load_guild_profile()
+                if guild_id is not None:
+                    result = await confManager.load_guild_profile(guild_id)
+                else:
+                    result = await confManager.load_guild_profile()
                 result = await self.dataclass_to_json(result)
                 return Response(result, 200)
             except Exception as e:
@@ -173,7 +178,13 @@ class Webserver(commands.Cog):
         if type(obj) == dict:
             converted_dict = [prof.model_dump(mode='python', exclude='action') for prof in obj.values()]
             json_str = json.dumps(converted_dict, ensure_ascii=False, indent=4)
-            return json_str
+
+        # TODO: implement this method, convert GuildProfile to json string.
+        if type(obj) == GuildProfile:
+            converted_dict = obj.model_dump(mode='python', exclude='action')
+            json_str = json.dumps(converted_dict, ensure_ascii=False, indent=4)
+
+        return json_str
 
     @tasks.loop()
     async def web_server(self):
