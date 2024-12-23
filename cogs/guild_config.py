@@ -78,7 +78,7 @@ class GuildConfigManager(commands.Cog):
         
         :param GuildProfile profile: If no profile is specified, then load all profiles.
 
-        :return guildProfileList: List of guild profile or single given profile of guild id
+        :return guildProfileList: Dict of guild profile or single given profile of guild id
         '''
 
         # TODO: Test with this method
@@ -97,11 +97,15 @@ class GuildConfigManager(commands.Cog):
             return self.guildProfileList
 
         if guild_id is not None:
-            async with aiofiles.open(f'{self.PROFILEPATH}/{guild_id}.json', 'r') as file:
-                profile_json = await file.read()
-                profile = GuildProfile.model_load(json.loads(profile_json), mode='json')
-                self.guildProfileList[profile.id] = profile
-                return self.guildProfileList[profile.id]
+            try:
+                async with aiofiles.open(f'{self.PROFILEPATH}/{guild_id}.json', 'r') as file:
+                    profile_json = await file.read()
+                    profile_json = json.loads(profile_json)
+                    profile = GuildProfile(**profile_json)
+                    self.guildProfileList[profile.id] = profile
+                    return self.guildProfileList[profile.id]
+            except Exception as e:
+                bot_log.log('Error loading profile from file: {fileName} - {e}', 40)
         return None
 
     async def save_guild_profile(self, profile: GuildProfile):
