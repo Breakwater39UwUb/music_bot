@@ -1,0 +1,8 @@
+aiofiles
+discord.py
+aiohttp
+pydantic
+pymysql
+ytmusicapi
+urllib3
+DBUtils
