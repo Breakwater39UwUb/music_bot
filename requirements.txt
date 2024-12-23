@@ -6,3 +6,4 @@ pymysql
 ytmusicapi
 urllib3
 DBUtils
+fastapi
