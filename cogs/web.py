@@ -1,7 +1,9 @@
 import os
 import json
 import asyncio
+import threading
 from flask import Flask, jsonify, request, Response
+from werkzeug.serving import make_server
 from discord.ext import commands, tasks
 import utils
 from dataclass import (
@@ -21,6 +23,7 @@ class Webserver(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.flask_port = int(os.environ.get('FLASK_PORT', 5887))
+        self.server = None
         self.web_server.start()
 
         # Flask 路由設定
@@ -59,6 +62,7 @@ class Webserver(commands.Cog):
             cog_manager = self.bot.get_cog('BotManger')
             data = request.get_json()
 
+            # TODO: Fix `Timeout context manager should be used inside a task` when calling following cog loading. Consider move Flask to bot.py
             if data['method'] == 'load':
                 result = asyncio.run(cog_manager.load_from_web(module=data['file']))
             elif data['method'] == 'unload':
@@ -80,6 +84,7 @@ class Webserver(commands.Cog):
             if data['action'] == 'restart':
                 cog = self.bot.get_cog('Main')
                 cmd_log.log(f'restart called by {user}')
+                self.stop_flask()
                 cog.restart_bot()
 
             return Response(status=200)
@@ -126,16 +131,19 @@ class Webserver(commands.Cog):
             return obj.model_dump(mode='python', exclude='action')
         return {}
 
-            # TODO: Fix error occur after restart: OSError: [Errno 48] Address already in use
-    @tasks.loop()
+    def start_flask(self):
+        from werkzeug.serving import make_server
+        self.server = make_server("0.0.0.0", self.flask_port, flask_app)
+        self.server.serve_forever()
+
+    def stop_flask(self):
+        if self.server:
+            threading.Thread(target=self.server.shutdown).start()
+
+    @tasks.loop(count=1)
     async def web_server(self):
-        from threading import Thread
-
-        def start_flask():
-            flask_app.run(host="0.0.0.0", port=self.flask_port)
-
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, start_flask)
+        thread = threading.Thread(target=self.start_flask, daemon=True)
+        thread.start()
 
     @web_server.before_loop
     async def web_server_before_loop(self):
