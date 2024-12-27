@@ -79,17 +79,17 @@ class BotManger(commands.Cog):
                 for item in self.CogModules:
                     if item == self.CogModules.all:
                         continue
-                    # Reload each module with a 20-second timeout
+                    # Load each module with a 20-second timeout
                     bot_log.log(f'Loading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.load_extension(item.value), timeout=20)
                     bot_log.log(f'Finish loading cog module: {item.value}')
             else:
-                # Reload the specified module with a 20-second timeout
-                bot_log.log(f'Loading cog module: {module.value}')
+                # Load the specified module with a 20-second timeout
+                bot_log.log(f'Loading cog module: {module}')
                 await asyncio.wait_for(
                     self.bot.load_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
-                bot_log.log(f'Finish loading cog module: {module.value}')
+                bot_log.log(f'Finish loading cog module: {module}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
@@ -127,13 +127,13 @@ class BotManger(commands.Cog):
                 for item in self.CogModules:
                     if item == self.CogModules.all:
                         continue
-                    # Reload each module with a 20-second timeout
+                    # Unload each module with a 20-second timeout
                     bot_log.log(f'Unoading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.unload_extension(item.value), timeout=20)
                     bot_log.log(f'Finish unloading cog module: {item.value}')
             else:
-                # Reload the specified module with a 20-second timeout
-                bot_log.log(f'Unoading cog module: {module.value}')
+                # Unload the specified module with a 20-second timeout
+                bot_log.log(f'Unloading cog module: {module.value}')
                 await asyncio.wait_for(self.bot.unload_extension(f'{module.value}'), timeout=20)
                 bot_log.log(f'Finish unloading cog module: {module.value}')
 
@@ -160,21 +160,21 @@ class BotManger(commands.Cog):
                 for item in self.CogModules:
                     if item == self.CogModules.all:
                         continue
-                    # Reload each module with a 20-second timeout
-                    bot_log.log(f'Unoading cog module: {item.value}')
+                    # Unload each module with a 20-second timeout
+                    bot_log.log(f'Unloading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.unload_extension(item.value), timeout=20)
                     bot_log.log(f'Finish unloading cog module: {item.value}')
             else:
-                # Reload the specified module with a 20-second timeout
-                bot_log.log(f'Unoading cog module: {module.value}')
+                # Unload the specified module with a 20-second timeout
+                bot_log.log(f'Unloading cog module: {module}')
                 await asyncio.wait_for(
                     self.bot.unload_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
-                bot_log.log(f'Finish unloading cog module: {module.value}')
+                bot_log.log(f'Finish unloading cog module: {module}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
-            bot_log.log(f'`{module}` loaded.')
+            bot_log.log(f'`{module}` unloaded.')
             bot_log.log(f"載入 {len(slash)} 個斜線指令")
             return result
         except asyncio.TimeoutError as te:
@@ -241,16 +241,16 @@ class BotManger(commands.Cog):
                     if item == self.CogModules.all:
                         continue
                     # Reload each module with a 20-second timeout
-                    bot_log.log(f'Rnoading cog module: {item.value}')
+                    bot_log.log(f'Reloading cog module: {item.value}')
                     await asyncio.wait_for(self.bot.reload_extension(item.value), timeout=20)
                     bot_log.log(f'Finish reloading cog module: {item.value}')
             else:
                 # Reload the specified module with a 20-second timeout
-                bot_log.log(f'Rnoading cog module: {module.value}')
+                bot_log.log(f'Reloading cog module: {module}')
                 await asyncio.wait_for(
                     self.bot.reload_extension(f'{self.CogModules.__cogDir__}{module}'),
                     timeout=20)
-                bot_log.log(f'Finish reloading cog module: {module.value}')
+                bot_log.log(f'Finish reloading cog module: {module}')
 
             slash = await self.bot.tree.sync()
             result['result'] = 'Success'
